@@ -1,0 +1,13 @@
+# Zig build outputs.
+.zig-cache/
+zig-out/
+
+# Downloaded TDLib binary (see tdlib.lock and scripts/fetch-tdlib.sh).
+vendor/tdlib/
+
+# Local secrets and configuration.
+**/*.local.zon
+.env
+.env.*
+*.pem
+*.key

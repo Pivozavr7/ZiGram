@@ -1,0 +1,7 @@
+# Pinned TDLib artifact for ZiGram. Consumed by scripts/fetch-tdlib.sh.
+# The npm package mirrors prebuilt TDLib releases; nothing here is committed
+# except this lock file.
+package=@prebuilt-tdlib/linux-x64-glibc
+version=0.1008070.0
+tdlib_version=1.8.70
+sha256=227bc538d0adf5a2627c9a2e88e192bfa802c93b91165275b68a9be5e79a39a2

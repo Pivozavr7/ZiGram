@@ -11,3 +11,8 @@ vendor/tdlib/
 .env.*
 *.pem
 *.key
+
+# Local agent instructions and planning notes; not part of the published project.
+AGENTS.md
+opencode.json
+ZiGram-plan.md

@@ -1,0 +1,5 @@
+# Pinned Dear ImGui sources.
+package=ocornut/imgui
+version=1.93.0
+url=https://github.com/ocornut/imgui/archive/refs/tags/v1.93.0.tar.gz
+sha256=f7bf6bc76e5d79d40d751096663e6c5d18daf08129dd52e7f7b09e4251c8eeee

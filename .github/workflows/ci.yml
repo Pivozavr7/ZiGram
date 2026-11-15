@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.1
+
+      - name: Fetch TDLib
+        run: bash scripts/fetch-tdlib.sh
+
+      - name: Run tests
+        run: zig build test --summary all
+
+  build:
+    name: Build (core + cli + gui)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.1
+
+      - name: Fetch dependencies
+        run: bash scripts/fetch-deps.sh
+
+      - name: Build SDL3
+        run: bash scripts/build-sdl.sh
+
+      - name: Build
+        run: zig build
+
+      - name: Smoke test CLI
+        run: ./zig-out/bin/zigram-cli version

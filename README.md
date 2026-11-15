@@ -129,22 +129,22 @@ Themes and keybinds will be separate files you can edit and reload (planned):
 
 ## Build and run
 
-Once the core lands (see roadmap):
-
 ```sh
-git clone https://github.com/<you>/ZiGram
+git clone https://github.com/Pivozavr7/ZiGram
 cd ZiGram
-./scripts/fetch-tdlib.sh
+./scripts/fetch-tdlib.sh      # prebuilt TDLib (tdlib.lock pins the version)
+./scripts/fetch-deps.sh       # SDL3 and Dear ImGui sources (sdl.lock, imgui.lock)
+./scripts/build-sdl.sh        # builds vendor/sdl/libSDL3.a (needs gcc + cmake)
 
-zig build                 # build
+zig build                 # build core, cli and gui
 zig build test            # run tests
-zig build run             # launch
+zig build run-gui         # launch the GUI (needs Vulkan)
 ```
 
-Until the UI exists, the headless client is the way to exercise the core:
+Until the login flow lands in the GUI, the headless client exercises the core:
 
 ```sh
-zig build run-cli -- login
+zig build run-cli -- version
 ```
 
 ## Roadmap

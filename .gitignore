@@ -5,6 +5,13 @@ zig-out/
 # Downloaded TDLib binary (see tdlib.lock and scripts/fetch-tdlib.sh).
 vendor/tdlib/
 
+# Downloaded third-party sources (see sdl.lock, imgui.lock,
+# scripts/fetch-deps.sh).
+vendor/downloads/
+vendor/SDL3-*/
+vendor/imgui-*/
+vendor/sdl/
+
 # Local secrets and configuration.
 **/*.local.zon
 .env

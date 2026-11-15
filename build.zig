@@ -27,6 +27,61 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(cli);
 
+    const imgui = b.addLibrary(.{
+        .linkage = .static,
+        .name = "imgui",
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .link_libcpp = true,
+        }),
+    });
+    const imgui_mod = imgui.root_module;
+    imgui_mod.addIncludePath(b.path("vendor/imgui-1.93.0"));
+    imgui_mod.addIncludePath(b.path("vendor/imgui-1.93.0/backends"));
+    imgui_mod.addIncludePath(b.path("vendor/SDL3-3.4.20/include"));
+    imgui_mod.addCSourceFiles(.{
+        .root = b.path("vendor/imgui-1.93.0"),
+        .files = &.{
+            "imgui.cpp",
+            "imgui_draw.cpp",
+            "imgui_tables.cpp",
+            "imgui_widgets.cpp",
+            "backends/imgui_impl_sdl3.cpp",
+            "backends/imgui_impl_sdlgpu3.cpp",
+        },
+    });
+    // C ABI bridge between the Zig GUI and SDL3 + ImGui.
+    imgui_mod.addCSourceFiles(.{
+        .root = b.path("src/ui"),
+        .files = &.{"gfx_shim.cpp"},
+    });
+
+    const gui = b.addExecutable(.{
+        .name = "zigram-gui",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/gui/main.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+            .link_libcpp = true,
+            .imports = &.{
+                .{ .name = "zigram", .module = core },
+            },
+        }),
+    });
+    // Prebuilt by cmake once (see README); SDL3's sources select platform
+    // backends with generated config headers, which the build system cannot
+    // reproduce reliably.
+    gui.root_module.addObjectFile(b.path("vendor/sdl/libSDL3.a"));
+    gui.root_module.linkLibrary(imgui);
+    b.installArtifact(gui);
+
+    const run_gui_step = b.step("run-gui", "Run zigram-gui");
+    const run_gui = b.addRunArtifact(gui);
+    run_gui.step.dependOn(b.getInstallStep());
+    run_gui_step.dependOn(&run_gui.step);
+
     const run_step = b.step("run", "Run zigram-cli");
     const run_cli = b.addRunArtifact(cli);
     run_cli.step.dependOn(b.getInstallStep());

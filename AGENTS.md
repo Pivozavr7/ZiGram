@@ -81,7 +81,7 @@ If requirements are unclear, ask one short question instead of inventing behavio
 
 ## Roadmap (MVP 0 = core, MVP 1 = UI)
 
-- [ ] 0.0 skeleton: `build.zig`, `build.zig.zon`, `scripts/fetch-tdlib.sh`, `vendor/tdlib.lock`
+- [ ] 0.0 skeleton: `build.zig`, `build.zig.zon`, `scripts/fetch-tdlib.sh`, `tdlib.lock`
 - [ ] 0.1 `td.zig`: DynLib, symbols, version check, receiver thread, event queue, `@extra` matching
 - [ ] 0.2 `auth.zig`: WaitTdlibParameters, WaitPhoneNumber, WaitCode, WaitPassword, Ready; `zigram-cli login`
 - [ ] 0.3 chats list and history (`loadChats`, `getChatHistory`, updates)

@@ -28,7 +28,7 @@ ZiGram/
 
 `scripts/fetch-tdlib.sh` (логика):
 
-1. Прочитать версию и `sha256` из `vendor/tdlib.lock`
+1. Прочитать версию и `sha256` из `tdlib.lock`
 2. `npm pack @prebuilt-tdlib/linux-x64-glibc@<версия>` во временную папку
 3. Распаковать, взять `libtdjson.so`
 4. Сверить `sha256sum` с lock-файлом, при несовпадении остановиться
@@ -118,7 +118,7 @@ pub const Api = struct {
 
 ## 6. Ближайшие шаги
 
-1. `sha256sum libtdjson.so` и заполнить `vendor/tdlib.lock`
+1. `sha256sum libtdjson.so` и заполнить `tdlib.lock`
 2. Написать `fetch-tdlib.sh`
 3. `td.zig`: DynLib + `td_execute` getOption version (первый «живой» вызов)
 4. Поток-приёмник и автомат авторизации

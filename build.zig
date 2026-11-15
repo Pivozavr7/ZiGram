@@ -8,6 +8,10 @@ pub fn build(b: *std.Build) void {
         .root_source_file = b.path("src/core/root.zig"),
         .target = target,
         .optimize = optimize,
+        // TDLib is dynamically linked against libc and libm. Linking libc
+        // makes std.DynLib use dlopen, which resolves those dependencies;
+        // without it Zig's built-in ELF loader cannot run TDLib.
+        .link_libc = true,
     });
 
     const cli = b.addExecutable(.{

@@ -16,6 +16,13 @@ SDL_Window* g_window = nullptr;
 SDL_GPUDevice* g_device = nullptr;
 bool g_initialized = false;
 
+// Frames to skip after a window resize: the swapchain still carries the old
+// size while ImGui already renders with the new one, and SDL asserts when
+// the viewport exceeds the render target.
+int g_resize_frames_pending = 0;
+int g_render_width = 0;
+int g_render_height = 0;
+
 } // namespace
 
 extern "C" {
@@ -129,6 +136,13 @@ zig_gfx_event zig_gfx_poll_event(void)
     if (!SDL_PollEvent(&event))
         return ZIG_GFX_EVENT_NONE;
     ImGui_ImplSDL3_ProcessEvent(&event);
+    if (event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED ||
+        event.type == SDL_EVENT_WINDOW_RESIZED)
+    {
+        // Two frames: one for the swapchain to be rebuilt, one for the new
+        // size to reach the render target.
+        g_resize_frames_pending = 2;
+    }
     if (event.type == SDL_EVENT_QUIT)
         return ZIG_GFX_EVENT_QUIT;
     if (event.type == SDL_EVENT_WINDOW_CLOSE_REQUESTED &&
@@ -147,6 +161,26 @@ void zig_gfx_new_frame(void)
 // Renders the prepared ImGui frame and submits the GPU command buffer.
 void zig_gfx_render(float clear_r, float clear_g, float clear_b, float clear_a)
 {
+    int window_width = 0;
+    int window_height = 0;
+    if (!SDL_GetWindowSizeInPixels(g_window, &window_width, &window_height))
+        return;
+
+    if (g_resize_frames_pending > 0 ||
+        window_width != g_render_width || window_height != g_render_height)
+    {
+        // The swapchain still carries the old size: rebuild it and skip the
+        // frame, otherwise the viewport would exceed the render target.
+        g_resize_frames_pending -= 1;
+        if (g_resize_frames_pending < 0)
+            g_resize_frames_pending = 0;
+        g_render_width = window_width;
+        g_render_height = window_height;
+        SDL_SetGPUSwapchainParameters(
+            g_device, g_window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_VSYNC);
+        return;
+    }
+
     ImGui::Render();
     ImDrawData* draw_data = ImGui::GetDrawData();
     if (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f)

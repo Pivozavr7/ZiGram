@@ -17,7 +17,8 @@ pub const Login = struct {
     /// Bounded text buffers; ImGui requires a zero-terminated buffer.
     phone: [32]u8 = @splat(0),
     code: [16]u8 = @splat(0),
-    password: [64]u8 = @splat(0),
+    /// Telegram allows long 2FA passwords; the buffer is cleared after use.
+    password: [256]u8 = @splat(0),
 
     /// Draws the screen of the current authorization state.
     pub fn draw(self: *Login, session: *Session) Outcome {
@@ -76,6 +77,7 @@ pub const Login = struct {
                 session.sendCode(code) catch |err| {
                     session.reportError("sending the code", err);
                 };
+                @memset(self.code[0..], 0);
             }
         }
         if (gfx.button("Resend code") and !session.isPending()) {
@@ -106,6 +108,7 @@ pub const Login = struct {
                 session.sendPassword(password) catch |err| {
                     session.reportError("sending the password", err);
                 };
+                @memset(self.password[0..], 0);
             }
         }
     }

@@ -164,6 +164,13 @@ void zig_gfx_new_frame(void)
 // Renders the prepared ImGui frame and submits the GPU command buffer.
 void zig_gfx_render(float clear_r, float clear_g, float clear_b, float clear_a)
 {
+    // The ImGui frame has to be closed every time, even when the GPU work is
+    // skipped: otherwise ImGui aborts on the next NewFrame.
+    ImGui::Render();
+    ImDrawData* draw_data = ImGui::GetDrawData();
+    if (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f)
+        return;
+
     int window_width = 0;
     int window_height = 0;
     if (!SDL_GetWindowSizeInPixels(g_window, &window_width, &window_height))
@@ -173,7 +180,8 @@ void zig_gfx_render(float clear_r, float clear_g, float clear_b, float clear_a)
         window_width != g_render_width || window_height != g_render_height)
     {
         // The swapchain still carries the old size: rebuild it and skip the
-        // frame, otherwise the viewport would exceed the render target.
+        // GPU work of this frame, otherwise the viewport would exceed the
+        // render target.
         g_resize_frames_pending -= 1;
         if (g_resize_frames_pending < 0)
             g_resize_frames_pending = 0;
@@ -183,11 +191,6 @@ void zig_gfx_render(float clear_r, float clear_g, float clear_b, float clear_a)
             g_device, g_window, SDL_GPU_SWAPCHAINCOMPOSITION_SDR, SDL_GPU_PRESENTMODE_VSYNC);
         return;
     }
-
-    ImGui::Render();
-    ImDrawData* draw_data = ImGui::GetDrawData();
-    if (draw_data->DisplaySize.x <= 0.0f || draw_data->DisplaySize.y <= 0.0f)
-        return;
 
     SDL_GPUCommandBuffer* command_buffer = SDL_AcquireGPUCommandBuffer(g_device);
     SDL_GPUTexture* swapchain_texture = nullptr;

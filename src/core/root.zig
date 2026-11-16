@@ -6,6 +6,8 @@ pub const td = @import("td.zig");
 pub const request = @import("request.zig");
 pub const auth = @import("auth.zig");
 pub const store = @import("store/root.zig");
+pub const updates = @import("updates.zig");
+pub const chats = @import("chats.zig");
 
 /// Human-readable version of the ZiGram core.
 pub const version = "0.0.0";
@@ -19,4 +21,6 @@ test {
     _ = @import("request.zig");
     _ = @import("auth.zig");
     _ = @import("store/root.zig");
+    _ = @import("updates.zig");
+    _ = @import("chats.zig");
 }

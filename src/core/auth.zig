@@ -18,6 +18,8 @@ pub const State = union(enum) {
     wait_phone_number,
     wait_code: struct { is_registered: bool },
     wait_password: struct { password_hint: ?[]u8 },
+    /// Scan the QR link in an already authorized Telegram app.
+    wait_other_device_confirmation: struct { link: []u8 },
     wait_registration,
     ready,
     logging_out,
@@ -41,6 +43,9 @@ pub const Update = struct {
         switch (self.state) {
             .wait_password => |payload| {
                 if (payload.password_hint) |hint| self.allocator.free(hint);
+            },
+            .wait_other_device_confirmation => |payload| {
+                self.allocator.free(payload.link);
             },
             .other => |name| self.allocator.free(name),
             else => {},
@@ -84,6 +89,14 @@ pub const Update = struct {
             else
                 null;
             state = .{ .wait_password = .{ .password_hint = hint } };
+        } else if (std.mem.eql(u8, payload_type, "authorizationStateWaitOtherDeviceConfirmation")) {
+            const link = authorization.link orelse {
+                state = .{ .other = try allocator.dupe(u8, payload_type) };
+                return .{ .allocator = allocator, .state = state };
+            };
+            state = .{ .wait_other_device_confirmation = .{
+                .link = try allocator.dupe(u8, link),
+            } };
         } else if (std.mem.eql(u8, payload_type, "authorizationStateWaitRegistration")) {
             state = .wait_registration;
         } else if (std.mem.eql(u8, payload_type, "authorizationStateReady")) {
@@ -106,6 +119,8 @@ const AuthStatePayload = struct {
     @"@type": []const u8,
     is_registered: bool = false,
     password_hint: ?[]const u8 = null,
+    /// Login link for `authorizationStateWaitOtherDeviceConfirmation`.
+    link: ?[]const u8 = null,
 };
 
 const ParsedUpdate = struct {
@@ -224,6 +239,18 @@ pub fn checkAuthenticationPasswordRequest(
     });
 }
 
+/// Builds `resendAuthenticationCode` JSON: asks TDLib to send the login code
+/// again, for example when it never reached the user's Telegram app.
+pub fn resendAuthenticationCodeRequest(allocator: Allocator) RequestError![]u8 {
+    return buildRequest(allocator, "resendAuthenticationCode", &.{});
+}
+
+/// Builds `requestQrCodeAuthentication` JSON: TDLib answers with a login link
+/// that the user scans in an already authorized Telegram app.
+pub fn requestQrCodeAuthenticationRequest(allocator: Allocator) RequestError![]u8 {
+    return buildRequest(allocator, "requestQrCodeAuthentication", &.{});
+}
+
 test "parse recognizes wait tdlib parameters" {
     var update = (try Update.parse(
         std.testing.allocator,
@@ -329,5 +356,39 @@ test "phone number and password requests are encoded" {
     try std.testing.expectEqualStrings(
         "{\"@type\":\"checkAuthenticationPassword\",\"password\":\"secret\"}",
         password,
+    );
+}
+
+test "resend code request is encoded" {
+    const resend = try resendAuthenticationCodeRequest(std.testing.allocator);
+    defer std.testing.allocator.free(resend);
+
+    try std.testing.expectEqualStrings(
+        "{\"@type\":\"resendAuthenticationCode\"}",
+        resend,
+    );
+}
+
+test "parse copies the QR login link" {
+    var update = (try Update.parse(
+        std.testing.allocator,
+        "{\"@type\":\"updateAuthorizationState\",\"authorization_state\":{\"@type\":\"authorizationStateWaitOtherDeviceConfirmation\",\"link\":\"tg://login?token=abc\"}}",
+    )) orelse return error.TestUnexpectedResult;
+    defer update.deinit();
+
+    try std.testing.expect(update.state == .wait_other_device_confirmation);
+    try std.testing.expectEqualStrings(
+        "tg://login?token=abc",
+        update.state.wait_other_device_confirmation.link,
+    );
+}
+
+test "qr request is encoded" {
+    const json = try requestQrCodeAuthenticationRequest(std.testing.allocator);
+    defer std.testing.allocator.free(json);
+
+    try std.testing.expectEqualStrings(
+        "{\"@type\":\"requestQrCodeAuthentication\"}",
+        json,
     );
 }

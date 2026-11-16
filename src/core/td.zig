@@ -405,6 +405,14 @@ pub const Client = struct {
             }
         }
 
+        // TDLib 1.8.x (ClientManager-based tdjson) starts delivering
+        // spontaneous updates only after the first request has been sent
+        // through the client; until then `td_receive` returns null forever.
+        // The harmless `getOption` also confirms the client is alive.
+        _ = self.send("{\"@type\":\"getOption\",\"name\":\"version\"}") catch |err| {
+            std.log.warn("client kickstart send failed: {s}", .{@errorName(err)});
+        };
+
         self.receiver_thread = std.Thread.spawn(
             .{},
             receiverLoop,
@@ -830,11 +838,14 @@ test "client matches a response to its request" {
 
     const extra = try client.send("{\"@type\":\"getOption\",\"name\":\"version\"}");
 
-    const response_limit = 100;
+    // Cold start of libtdjson can take seconds under machine load, so the
+    // budget is generous; the loop returns as soon as the response arrives.
+    const response_limit = 60;
+    const poll_timeout_ms = 1000;
     var matched: ?[]u8 = null;
     var attempts: usize = 0;
     while (attempts < response_limit) : (attempts += 1) {
-        const response = (try client.poll(100)) orelse continue;
+        const response = (try client.poll(poll_timeout_ms)) orelse continue;
         if (response.extra) |response_extra| {
             if (response_extra == extra) {
                 matched = response.json;

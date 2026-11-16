@@ -6,6 +6,7 @@
 // here in static storage.
 
 #include <SDL3/SDL.h>
+#include <string>
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlgpu3.h"
@@ -238,19 +239,19 @@ void zig_gfx_end(void)
     ImGui::End();
 }
 
-void zig_gfx_text(const char* text)
+void zig_gfx_text(const char* text, unsigned size)
 {
-    ImGui::TextUnformatted(text);
+    ImGui::TextUnformatted(text, text + size);
 }
 
-void zig_gfx_text_disabled(const char* text)
+void zig_gfx_text_disabled(const char* text, unsigned size)
 {
-    ImGui::TextDisabled("%s", text);
+    ImGui::TextDisabled("%.*s", (int)size, text);
 }
 
-void zig_gfx_text_error(const char* text)
+void zig_gfx_text_error(const char* text, unsigned size)
 {
-    ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s", text);
+    ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%.*s", (int)size, text);
 }
 
 void zig_gfx_separator(void)
@@ -266,6 +267,42 @@ bool zig_gfx_button(const char* label)
 bool zig_gfx_input_text(const char* label, char* buf, unsigned size)
 {
     return ImGui::InputText(label, buf, size);
+}
+
+bool zig_gfx_input_text_password(const char* label, char* buf, unsigned size)
+{
+    return ImGui::InputText(label, buf, size, ImGuiInputTextFlags_Password);
+}
+
+// Opens a child region; a size of 0 means "use the remaining space".
+bool zig_gfx_begin_child(const char* label, float size_x, float size_y)
+{
+    return ImGui::BeginChild(label, ImVec2(size_x, size_y), ImGuiChildFlags_None);
+}
+
+void zig_gfx_end_child(void)
+{
+    ImGui::EndChild();
+}
+
+bool zig_gfx_selectable(const char* label, bool selected)
+{
+    return ImGui::Selectable(label, selected);
+}
+
+bool zig_gfx_input_text_multiline(const char* label, char* buf, unsigned size)
+{
+    return ImGui::InputTextMultiline(
+        label,
+        buf,
+        size,
+        ImVec2(0.0f, 60.0f),
+        ImGuiInputTextFlags_AllowTabInput);
+}
+
+void zig_gfx_same_line(void)
+{
+    ImGui::SameLine();
 }
 
 } // extern "C"

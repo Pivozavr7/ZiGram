@@ -23,6 +23,16 @@ pub fn build(b: *std.Build) void {
         },
     });
 
+    const ui = b.addModule("zigram_ui", .{
+        .root_source_file = b.path("src/ui/root.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "zigram", .module = core },
+            .{ .name = "zigram_app", .module = app },
+        },
+    });
+
     const cli = b.addExecutable(.{
         .name = "zigram-cli",
         .root_module = b.createModule(.{
@@ -77,6 +87,7 @@ pub fn build(b: *std.Build) void {
             .imports = &.{
                 .{ .name = "zigram", .module = core },
                 .{ .name = "zigram_app", .module = app },
+                .{ .name = "zigram_ui", .module = ui },
             },
         }),
     });

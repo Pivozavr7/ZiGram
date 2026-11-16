@@ -6,6 +6,8 @@
 
 const std = @import("std");
 
+const request = @import("request.zig");
+
 const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
 
@@ -32,7 +34,7 @@ pub const State = union(enum) {
 
 pub const ParseError = std.json.ParseError(std.json.Scanner) || Allocator.Error;
 
-pub const RequestError = Allocator.Error || error{WriteFailed};
+pub const RequestError = request.Error;
 
 /// An owned authorization-state update.
 pub const Update = struct {
@@ -143,16 +145,8 @@ pub const Parameters = struct {
     use_secret_chats: bool = false,
 };
 
-const FieldValue = union(enum) {
-    string: []const u8,
-    int: i64,
-    boolean: bool,
-};
-
-const Field = struct {
-    name: []const u8,
-    value: FieldValue,
-};
+const FieldValue = request.FieldValue;
+const Field = request.Field;
 
 /// Builds `{"@type":<type_name>,<field>,...}` with proper string escaping.
 /// Zig field names cannot contain `@`, so requests are assembled here
@@ -162,24 +156,7 @@ fn buildRequest(
     type_name: []const u8,
     fields: []const Field,
 ) RequestError![]u8 {
-    var aw: std.Io.Writer.Allocating = try .initCapacity(allocator, 128);
-    errdefer aw.deinit();
-    const writer = &aw.writer;
-
-    try writer.writeAll("{\"@type\":");
-    try std.json.Stringify.encodeJsonString(type_name, .{}, writer);
-    for (fields) |field| {
-        try writer.writeAll(",");
-        try std.json.Stringify.encodeJsonString(field.name, .{}, writer);
-        try writer.writeAll(":");
-        switch (field.value) {
-            .string => |string| try std.json.Stringify.encodeJsonString(string, .{}, writer),
-            .int => |int| try writer.print("{d}", .{int}),
-            .boolean => |boolean| try writer.writeAll(if (boolean) "true" else "false"),
-        }
-    }
-    try writer.writeAll("}");
-    return aw.toOwnedSlice();
+    return request.build(allocator, type_name, fields);
 }
 
 /// Builds `setTdlibParameters` JSON. The caller owns the result.

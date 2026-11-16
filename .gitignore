@@ -6,10 +6,11 @@ zig-out/
 vendor/tdlib/
 
 # Downloaded third-party sources (see sdl.lock, imgui.lock,
-# scripts/fetch-deps.sh).
+# QR-Code-generator.lock and scripts/fetch-deps.sh).
 vendor/downloads/
 vendor/SDL3-*/
 vendor/imgui-*/
+vendor/QR-Code-generator-*/
 vendor/sdl/
 
 # Local secrets and configuration.
@@ -19,8 +20,6 @@ vendor/sdl/
 *.pem
 *.key
 
-# Local agent instructions and planning notes; not part of the published project.
+# Local agent tooling; not part of the published project.
 .opencode/
-AGENTS.md
 opencode.json
-ZiGram-plan.md

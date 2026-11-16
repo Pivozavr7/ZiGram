@@ -115,7 +115,9 @@ pub const Login = struct {
         widgets.text("Scan this code in Telegram:");
         widgets.disabled("Settings -> Devices -> Link Desktop Device");
         if (qrLink(session)) |link| {
-            widgets.text(link);
+            if (!gfx.qr(link, 5)) {
+                widgets.errorText("could not render the QR code");
+            }
         } else {
             widgets.errorText("waiting for the QR link");
         }

@@ -37,6 +37,7 @@ extern fn zig_gfx_end_child() void;
 extern fn zig_gfx_selectable(label: [*:0]const u8, selected: bool) bool;
 extern fn zig_gfx_input_text_multiline(label: [*:0]const u8, buf: [*]u8, size: c_uint) bool;
 extern fn zig_gfx_same_line() void;
+extern fn zig_gfx_qr(text: [*]const u8, size: c_uint, scale: c_uint) bool;
 
 /// Opens the window; returns false when the GPU device is unavailable.
 pub fn init(title: [*:0]const u8, width: c_int, height: c_int) bool {
@@ -134,4 +135,9 @@ pub fn selectable(label: [*:0]const u8, selected: bool) bool {
 
 pub fn sameLine() void {
     zig_gfx_same_line();
+}
+
+/// Draws a QR code for `value`; returns false when the code cannot be built.
+pub fn qr(value: []const u8, scale: u32) bool {
+    return zig_gfx_qr(value.ptr, @intCast(value.len), scale);
 }

@@ -30,7 +30,7 @@ read_lock_value() {
 }
 
 fetch_one() {
-    local name="$1" url="$2" dest_dir="$3" strip_depth="$4"
+    local name="$1" url="$2" dest_dir="$3"
     local lock_file="${repo_root}/${name}.lock"
 
     local version expected_sha256 tarball actual_sha256
@@ -70,4 +70,9 @@ fetch_one \
 fetch_one \
     "imgui" \
     "https://github.com/ocornut/imgui/archive/refs/tags/v$(read_lock_value version "${repo_root}/imgui.lock").tar.gz" \
+    "${dest_dir}"
+
+fetch_one \
+    "QR-Code-generator" \
+    "$(read_lock_value url "${repo_root}/QR-Code-generator.lock")" \
     "${dest_dir}"

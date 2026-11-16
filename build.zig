@@ -14,6 +14,15 @@ pub fn build(b: *std.Build) void {
         .link_libc = true,
     });
 
+    const app = b.addModule("zigram_app", .{
+        .root_source_file = b.path("src/app/root.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "zigram", .module = core },
+        },
+    });
+
     const cli = b.addExecutable(.{
         .name = "zigram-cli",
         .root_module = b.createModule(.{
@@ -67,6 +76,7 @@ pub fn build(b: *std.Build) void {
             .link_libcpp = true,
             .imports = &.{
                 .{ .name = "zigram", .module = core },
+                .{ .name = "zigram_app", .module = app },
             },
         }),
     });
@@ -101,9 +111,15 @@ pub fn build(b: *std.Build) void {
     });
     const run_cli_tests = b.addRunArtifact(cli_tests);
 
+    const app_tests = b.addTest(.{
+        .root_module = app,
+    });
+    const run_app_tests = b.addRunArtifact(app_tests);
+
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_core_tests.step);
     test_step.dependOn(&run_cli_tests.step);
+    test_step.dependOn(&run_app_tests.step);
 
     const fmt_step = b.addFmt(.{
         .paths = b.pathList(&.{ "src", "build.zig" }),

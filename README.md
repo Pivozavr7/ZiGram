@@ -93,7 +93,7 @@ Dependencies point strictly downward. Design decisions worth knowing:
 - **TDLib is loaded at runtime** with `std.DynLib`. There is no C header and no link-time dependency, so ZiGram builds without TDLib present, and you can point it at any compatible `libtdjson.so`.
 - **One receiver thread** calls `td_receive` and feeds a queue. The UI thread drains it once per frame with a bounded budget, so a burst of updates never freezes the window.
 - **The UI never talks to TDLib directly.** It reads application state and sends commands through the app layer.
-- **Small files by rule.** Source files stay short and single-purpose; the limits are enforced in [`AGENTS.md`](AGENTS.md).
+- **Small files by rule.** Source files stay short and single-purpose; the limits are enforced by the project's contribution rules.
 
 ## Requirements
 
@@ -198,7 +198,7 @@ Split the prototype into small single-purpose modules before the UI grows.
 - [ ] Multi-chat layout
 - [ ] **1.0**: a usable daily client. Packaging (AUR) comes after that.
 
-The detailed plan lives in [`ZiGram-plan.md`](ZiGram-plan.md).
+The detailed plan is maintained by the maintainers; the roadmap above tracks the same stages.
 
 ## Known challenges
 
@@ -210,7 +210,7 @@ Being upfront about the hard parts:
 
 ## Contributing
 
-The project is very young, so the most useful contributions right now are **ideas, testing on different setups, and focused PRs for roadmap items**. Please open an issue before large changes. Read [`AGENTS.md`](AGENTS.md) for the architecture rules, size limits and conventions; they apply to human contributors as well.
+The project is very young, so the most useful contributions right now are **ideas, testing on different setups, and focused PRs for roadmap items**. Please open an issue before large changes. The architecture rules, size limits and conventions apply to human contributors as well; ask the maintainers for the current version.
 
 ## Not affiliated with Telegram
 

@@ -6,12 +6,12 @@
 
 const std = @import("std");
 
-const td = @import("../td.zig");
+const client_mod = @import("client.zig");
 
 /// Receiver thread body: blocks in `td_receive`, copies every event and hands
 /// it to the queue. Strings returned by `td_receive` are only valid until the
 /// next call in this thread, hence the copy.
-pub fn receiverLoop(self: *td.Client) void {
+pub fn receiverLoop(self: *client_mod.Client) void {
     while (!self.stopping.load(.acquire)) {
         const raw = self.library.symbols.receive(self.receive_timeout_seconds) orelse
             continue;

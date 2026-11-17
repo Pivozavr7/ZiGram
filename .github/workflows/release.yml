@@ -47,7 +47,9 @@ jobs:
         run: bash scripts/fetch-tdlib.sh
 
       - name: Build
-        run: zig build -Doptimize=ReleaseSafe
+        # A fixed target: a `native` build would embed the runner's CPU
+        # features and crash with SIGILL on other machines.
+        run: zig build -Doptimize=ReleaseSafe -Dtarget=x86_64-linux-gnu
 
       - name: Package
         run: bash scripts/package-release.sh "${TAG#v}"

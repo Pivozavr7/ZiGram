@@ -13,6 +13,7 @@ const td = zigram.td;
 const updates = zigram.updates;
 
 const chat_updates = @import("chat_updates.zig");
+const client = @import("client.zig");
 const commands = @import("commands.zig");
 const config = @import("config.zig");
 const login = @import("login.zig");
@@ -72,17 +73,17 @@ pub const Session = struct {
         };
         session.config = loaded;
 
-        const client = try session.startClient(loaded);
-        session.client = client;
-        session.commands = commands.Commands.init(allocator, client);
+        const started = try client.start(session.allocator, session.io, session.logger, loaded);
+        session.client = started;
+        session.commands = commands.Commands.init(session.allocator, started);
         return session;
     }
 
     pub fn deinit(self: *Session) void {
         if (self.commands) |*cmd| cmd.deinit();
-        if (self.client) |client| {
-            client.deinit();
-            self.allocator.destroy(client);
+        if (self.client) |started| {
+            started.deinit();
+            self.allocator.destroy(started);
         }
         if (self.update) |*update| update.deinit();
         if (self.status) |text| self.allocator.free(text);
@@ -105,12 +106,12 @@ pub const Session = struct {
 
     /// Drains the events of the core; called once per frame.
     pub fn drain(self: *Session) !void {
-        const client = self.client orelse return;
+        const core_client = self.client orelse return;
 
         var remaining: usize = event_budget;
         while (remaining > 0) : (remaining -= 1) {
-            const response = (try client.poll(0)) orelse break;
-            defer client.allocator.free(response.json);
+            const response = (try core_client.poll(0)) orelse break;
+            defer core_client.allocator.free(response.json);
             self.logger.event(response.json);
 
             var maybe_update = try auth.Update.parse(self.allocator, response.json);
@@ -181,24 +182,6 @@ pub const Session = struct {
     fn commandSender(self: *Session) error{ClientMissing}!*commands.Commands {
         if (self.commands) |*cmd| return cmd;
         return error.ClientMissing;
-    }
-
-    fn startClient(self: *Session, loaded: config.Config) !*td.Client {
-        const library = try td.Library.init(self.allocator, .{
-            .tdlib_path = loaded.tdlib_path,
-            .project_root = std.process.currentPathAlloc(self.io, self.allocator) catch null,
-            .executable_dir = try config.executableDir(self.io, self.allocator),
-            .home_dir = null,
-        });
-
-        const client = try self.allocator.create(td.Client);
-        errdefer self.allocator.destroy(client);
-        try client.init(self.allocator, self.io, library, .{});
-
-        if (self.logger.enabled) {
-            client.library.setLogVerbosity(self.allocator, 5) catch {};
-        }
-        return client;
     }
 
     fn applyAuthorization(self: *Session, update: *auth.Update) !void {

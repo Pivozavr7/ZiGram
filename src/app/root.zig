@@ -4,6 +4,7 @@
 //! sends commands.
 
 pub const chat_updates = @import("chat_updates.zig");
+pub const client = @import("client.zig");
 pub const commands = @import("commands.zig");
 pub const config = @import("config.zig");
 pub const login = @import("login.zig");
@@ -14,6 +15,7 @@ pub const state = @import("state.zig");
 
 test {
     _ = @import("chat_updates.zig");
+    _ = @import("client.zig");
     _ = @import("commands.zig");
     _ = @import("config.zig");
     _ = @import("login.zig");

@@ -3,12 +3,12 @@
 //! The implementation lives in the sibling modules of `td/`; this file only
 //! re-exports their public API, so `zigram.td.*` keeps working.
 
-const td_client = @import("td/client.zig");
-const td_library = @import("td/library.zig");
-const queue = @import("td/queue.zig");
-const td_options = @import("td/options.zig");
-const receiver = @import("td/receiver.zig");
-const search = @import("td/search.zig");
+const td_client = @import("client.zig");
+const td_library = @import("library.zig");
+const queue = @import("queue.zig");
+const td_options = @import("options.zig");
+const receiver = @import("receiver.zig");
+const search = @import("search.zig");
 
 test {
     // Pull the tests of the split-up modules into the `td` test target.

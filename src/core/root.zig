@@ -4,7 +4,7 @@ const std = @import("std");
 
 pub const td = @import("td/root.zig");
 pub const request = @import("request.zig");
-pub const auth = @import("auth.zig");
+pub const auth = @import("auth/root.zig");
 pub const store = @import("store/root.zig");
 pub const updates = @import("updates.zig");
 pub const chats = @import("chats.zig");
@@ -19,7 +19,7 @@ test "core version is set" {
 test {
     _ = @import("td/root.zig");
     _ = @import("request.zig");
-    _ = @import("auth.zig");
+    _ = @import("auth/root.zig");
     _ = @import("store/root.zig");
     _ = @import("updates.zig");
     _ = @import("chats.zig");

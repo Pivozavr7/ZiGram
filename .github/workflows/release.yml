@@ -46,6 +46,9 @@ jobs:
       - name: Fetch TDLib
         run: bash scripts/fetch-tdlib.sh
 
+      - name: Build
+        run: zig build -Doptimize=ReleaseSafe
+
       - name: Package
         run: bash scripts/package-release.sh "${TAG#v}"
 

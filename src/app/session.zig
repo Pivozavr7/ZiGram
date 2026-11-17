@@ -85,6 +85,7 @@ pub const Session = struct {
             started.deinit();
             self.allocator.destroy(started);
         }
+        if (self.config) |*loaded| loaded.deinit(self.allocator);
         if (self.update) |*update| update.deinit();
         if (self.status) |text| self.allocator.free(text);
         self.state.deinit();

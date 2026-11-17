@@ -5,11 +5,20 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 
 /// Credentials and paths of the application.
+///
+/// The strings are owned copies; free them with `deinit`.
 pub const Config = struct {
     api_id: u32,
     api_hash: []const u8,
     /// Optional override for the libtdjson.so location.
     tdlib_path: ?[]const u8 = null,
+
+    /// Frees the owned strings.
+    pub fn deinit(self: *Config, allocator: Allocator) void {
+        if (self.tdlib_path) |path| allocator.free(path);
+        allocator.free(self.api_hash);
+        self.* = undefined;
+    }
 };
 
 pub const LoadError = error{
@@ -28,7 +37,7 @@ pub fn configPath(allocator: Allocator, home: []const u8) Allocator.Error![]u8 {
     );
 }
 
-/// Loads the configuration file. The caller owns the returned slices.
+/// Loads the configuration file. The caller owns the returned strings.
 pub fn load(
     allocator: Allocator,
     io: std.Io,
@@ -51,9 +60,14 @@ pub fn load(
     defer allocator.free(config_zon);
 
     var diagnostics: std.zon.parse.Diagnostics = undefined;
-    const config = std.zon.parse.fromSlice(Config, .{
+    // The parser allocates its values in an arena so nothing of it has to
+    // stay alive; the returned strings are copied out below.
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+
+    const parsed = std.zon.parse.fromSlice(Config, .{
         .gpa = allocator,
-        .arena = allocator,
+        .arena = arena.allocator(),
         .source = config_zon,
         .diagnostics = &diagnostics,
     }) catch |err| switch (err) {
@@ -67,10 +81,18 @@ pub fn load(
         else => return err,
     };
 
-    if (config.api_id == 0 or config.api_hash.len == 0) {
+    if (parsed.api_id == 0 or parsed.api_hash.len == 0) {
         return error.ConfigIncomplete;
     }
-    return config;
+
+    return .{
+        .api_id = parsed.api_id,
+        .api_hash = try allocator.dupe(u8, parsed.api_hash),
+        .tdlib_path = if (parsed.tdlib_path) |tdlib_path|
+            try allocator.dupe(u8, tdlib_path)
+        else
+            null,
+    };
 }
 
 /// Explains a startup failure in a few words the user can act on.

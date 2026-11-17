@@ -3,6 +3,7 @@
 //! The implementation lives in the sibling modules of `td/`; this file only
 //! re-exports their public API, so `zigram.td.*` keeps working.
 
+const close = @import("close.zig");
 const td_client = @import("client.zig");
 const td_library = @import("library.zig");
 const queue = @import("queue.zig");
@@ -18,6 +19,7 @@ test {
     _ = td_library;
     _ = receiver;
     _ = td_client;
+    _ = close;
 }
 
 // Re-exports so `zigram.td.*` keeps working.
@@ -41,3 +43,5 @@ pub const ClientSendError = td_client.ClientSendError;
 pub const ClientPollError = td_client.ClientPollError;
 pub const Response = td_client.Response;
 pub const Client = td_client.Client;
+pub const closeClient = close.closeClient;
+pub const CloseError = close.CloseError;

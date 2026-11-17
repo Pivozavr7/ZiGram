@@ -26,6 +26,9 @@ const Allocator = std.mem.Allocator;
 /// How many events one frame may process.
 const event_budget: usize = 32;
 
+/// How long the shutdown waits for TDLib to confirm the closed state.
+const close_timeout_ms: u32 = 5_000;
+
 /// The state of the running application.
 pub const Session = struct {
     allocator: Allocator,
@@ -82,6 +85,10 @@ pub const Session = struct {
     pub fn deinit(self: *Session) void {
         if (self.commands) |*cmd| cmd.deinit();
         if (self.client) |started| {
+            // TDLib has to release the client before the process exits,
+            // otherwise its background threads outlive the static
+            // destructors and abort the process.
+            td.closeClient(started, self.allocator, close_timeout_ms) catch {};
             started.deinit();
             self.allocator.destroy(started);
         }

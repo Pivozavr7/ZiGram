@@ -65,6 +65,51 @@ pub fn parseEventExtra(
     return parsed.value.@"@extra";
 }
 
+const AuthorizationState = struct {
+    @"@type": []const u8,
+};
+
+const AuthorizationUpdate = struct {
+    @"@type": []const u8,
+    authorization_state: ?AuthorizationState = null,
+};
+
+/// True when the event is the authorization state "closed" update, the
+/// answer of TDLib to a `close` request. A malformed event is not closed.
+pub fn isAuthorizationClosed(
+    allocator: std.mem.Allocator,
+    event_json: []const u8,
+) bool {
+    var parsed = std.json.parseFromSlice(
+        AuthorizationUpdate,
+        allocator,
+        event_json,
+        .{ .ignore_unknown_fields = true },
+    ) catch return false;
+    defer parsed.deinit();
+
+    const state = parsed.value.authorization_state orelse return false;
+    return std.mem.eql(u8, state.@"@type", "authorizationStateClosed");
+}
+
+test "isAuthorizationClosed recognizes the closed state" {
+    try std.testing.expect(isAuthorizationClosed(
+        std.testing.allocator,
+        "{\"@type\":\"updateAuthorizationState\",\"authorization_state\":{\"@type\":\"authorizationStateClosed\"}}",
+    ));
+}
+
+test "isAuthorizationClosed ignores other events" {
+    try std.testing.expect(!isAuthorizationClosed(
+        std.testing.allocator,
+        "{\"@type\":\"updateAuthorizationState\",\"authorization_state\":{\"@type\":\"authorizationStateReady\"}}",
+    ));
+    try std.testing.expect(!isAuthorizationClosed(
+        std.testing.allocator,
+        "{\"@type\":\"updateNewMessage\",\"message\":{}}",
+    ));
+}
+
 test "parseOptionString reads a string option" {
     const version = try parseOptionString(
         std.testing.allocator,

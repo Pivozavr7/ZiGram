@@ -25,6 +25,9 @@ text) in the GUI, and a headless `zigram-cli` on the same core.
 - Error responses with a string `message` no longer break event parsing.
 - Unparsable events are logged and skipped instead of failing the frame.
 - Shutdown leaks: configuration strings and library search paths are freed.
+- The TDLib client is closed over the protocol (`close` +
+  `authorizationStateClosed`), so its background threads no longer outlive
+  the static destructors and abort the process on exit.
 - The sentinel-terminated project root is freed with the right size.
 - Long 2FA passwords fit; password and code buffers are zeroed after use.
 

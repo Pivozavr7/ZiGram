@@ -20,6 +20,8 @@ Immediate-mode GPU interface · no Electron · no Qt · everything configurable
 [Build](#build-and-run) ·
 [Configuration](#configuration) ·
 [Roadmap](#roadmap) ·
+[Changelog](CHANGELOG.md) ·
+[Releases](https://github.com/Pivozavr7/ZiGram/releases) ·
 [Contributing](#contributing)
 
 </div>

@@ -58,4 +58,6 @@ jobs:
         run: zig build test --summary all
 
       - name: Smoke test CLI
-        run: ./zig-out/bin/zigram-cli version
+        run: |
+          bash scripts/fetch-tdlib.sh
+          ./zig-out/bin/zigram-cli version

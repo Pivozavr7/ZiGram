@@ -32,7 +32,7 @@ Immediate-mode GPU interface · no Electron · no Qt · everything configurable
 > **Pre-alpha. ZiGram is not usable as a daily client yet.**
 > The login flow (phone, code, 2FA, QR) and a first client view (chat list, message history, sending) are implemented in the GUI. Editing messages, media, themes and everything after it are **planned**. Items in this document are marked as planned until they exist.
 
-The project is currently in a cleanup phase: splitting early prototype files into small modules before the interface grows. Progress is tracked in the [roadmap](#roadmap).
+The prototype files are split into small single-purpose modules (stage R of the [roadmap](#roadmap) is done); the interface grows from here.
 
 ## Why ZiGram
 
@@ -168,14 +168,14 @@ Themes and keybinds will be separate files you can edit and reload (**planned**)
 
 ## Roadmap
 
-**Stage R: cleanup** (current)
+**Stage R: cleanup** (done)
 Split the prototype into small single-purpose modules before the UI grows.
 
 - [x] `store.zig` → `core/store/`
 - [x] `gui/main.zig` → `app/` + `ui/`
 - [x] `td.zig` → `core/td/` (`search`, `options`, `queue`, `library`, `receiver`, `client`)
 - [x] Long 2FA passwords, secret buffers cleared after use
-- [ ] CI runs tests in the build job
+- [x] CI runs tests in the build job
 
 **MVP 0: the core (no GUI)**
 
@@ -187,7 +187,7 @@ Split the prototype into small single-purpose modules before the UI grows.
 - [ ] Edit, delete, read marks; file downloads
 - [ ] `zigram-cli`: log in, list chats, read and send messages live
 
-**MVP 1: the interface**
+**MVP 1: the interface** (current)
 
 - [x] SDL3 + SDL_GPU + Dear ImGui window (HiDPI aware)
 - [x] Login screen wired to the authorization state machine

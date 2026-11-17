@@ -15,7 +15,9 @@ const Allocator = std.mem.Allocator;
 /// `td.Library.init` copies the paths it needs.
 const SearchPaths = struct {
     allocator: Allocator,
-    project_root: ?[]u8 = null,
+    /// Sentinel-terminated: `currentPathAlloc` allocates `len + 1` bytes,
+    /// so `free` must keep the sentinel to free the full allocation.
+    project_root: ?[:0]u8 = null,
     executable_dir: ?[]u8 = null,
 
     fn init(allocator: Allocator, io: std.Io) !SearchPaths {

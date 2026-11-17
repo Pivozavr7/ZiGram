@@ -1,15 +1,34 @@
-//! Applying the chat events and the answers of TDLib to the state.
+//! Dispatching TDLib events and their answers to the application state.
 
 const std = @import("std");
 
 const zigram = @import("zigram");
 
+const auth = zigram.auth;
 const chats = zigram.chats;
 const store = zigram.store;
 const updates = zigram.updates;
 
 const commands = @import("commands.zig");
+const log = @import("log.zig");
 const state = @import("state.zig");
+
+/// Runs a core event parser; an event that fails to parse is logged and
+/// dropped instead of failing the frame. Out-of-memory still propagates.
+pub fn parseTolerantly(
+    comptime EventUpdate: type,
+    allocator: std.mem.Allocator,
+    logger: log.Logger,
+    event_json: []const u8,
+) !?EventUpdate {
+    return EventUpdate.parse(allocator, event_json) catch |err| switch (err) {
+        error.OutOfMemory => return error.OutOfMemory,
+        else => {
+            logger.unparsable(err);
+            return null;
+        },
+    };
+}
 
 /// Applies an `update*` event to the chat list and the histories.
 pub fn applyUpdate(app_state: *state.State, event: updates.Event) !void {

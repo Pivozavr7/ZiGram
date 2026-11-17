@@ -18,6 +18,13 @@ pub const Logger = struct {
         std.debug.print("event: {s}\n", .{json});
     }
 
+    /// Logs an event that failed to parse; the error name only, never the
+    /// event content, which may hold private data.
+    pub fn unparsable(self: Logger, err: anyerror) void {
+        if (!self.enabled) return;
+        std.debug.print("unparsable event: {s}\n", .{@errorName(err)});
+    }
+
     /// Logs an outgoing request with the `api_hash` value redacted.
     pub fn request(self: Logger, allocator: Allocator, json: []const u8) void {
         if (!self.enabled) return;

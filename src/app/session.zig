@@ -114,13 +114,23 @@ pub const Session = struct {
             defer core_client.allocator.free(response.json);
             self.logger.event(response.json);
 
-            var maybe_update = try auth.Update.parse(self.allocator, response.json);
+            var maybe_update = try chat_updates.parseTolerantly(
+                auth.Update,
+                self.allocator,
+                self.logger,
+                response.json,
+            );
             if (maybe_update) |*update| {
                 try self.applyAuthorization(update);
                 continue;
             }
 
-            var maybe_event = try updates.Update.parse(self.allocator, response.json);
+            var maybe_event = try chat_updates.parseTolerantly(
+                updates.Update,
+                self.allocator,
+                self.logger,
+                response.json,
+            );
             if (maybe_event) |*event| {
                 defer event.deinit();
                 try chat_updates.applyUpdate(&self.state, event.event);

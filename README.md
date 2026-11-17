@@ -173,6 +173,7 @@ Split the prototype into small single-purpose modules before the UI grows.
 
 - [x] `store.zig` → `core/store/`
 - [x] `gui/main.zig` → `app/` + `ui/`
+- [x] `td.zig` → `core/td/` (`search`, `options`, `queue`, `library`, `receiver`, `client`)
 - [x] Long 2FA passwords, secret buffers cleared after use
 - [ ] CI runs tests in the build job
 

@@ -9,6 +9,7 @@ const std = @import("std");
 const td_options = @import("td/options.zig");
 const td_library = @import("td/library.zig");
 const queue = @import("td/queue.zig");
+const receiver = @import("td/receiver.zig");
 const search = @import("td/search.zig");
 
 const Io = std.Io;
@@ -21,6 +22,7 @@ test {
     _ = td_options;
     _ = queue;
     _ = td_library;
+    _ = receiver;
 }
 
 // Re-exports so `zigram.td.*` keeps working while `td.zig` is split up.
@@ -129,7 +131,7 @@ pub const Client = struct {
 
         self.receiver_thread = std.Thread.spawn(
             .{},
-            receiverLoop,
+            receiver.receiverLoop,
             .{self},
         ) catch return error.ThreadSpawnFailed;
     }
@@ -212,26 +214,6 @@ pub const Client = struct {
         return .{ .json = bytes, .extra = extra };
     }
 };
-
-/// Receiver thread body: blocks in `td_receive`, copies every event and hands
-/// it to the queue. Strings returned by `td_receive` are only valid until the
-/// next call in this thread, hence the copy.
-fn receiverLoop(self: *Client) void {
-    while (!self.stopping.load(.acquire)) {
-        const raw = self.library.symbols.receive(self.receive_timeout_seconds) orelse
-            continue;
-
-        const copied = self.allocator.dupe(u8, std.mem.span(raw)) catch {
-            // Out of memory: stop delivering events instead of spinning.
-            std.log.warn("receiver thread stopped: out of memory", .{});
-            break;
-        };
-        self.events.push(self.io, copied) catch {
-            self.allocator.free(copied);
-            break;
-        };
-    }
-}
 
 test "client matches a response to its request" {
     const allocator = std.testing.allocator;

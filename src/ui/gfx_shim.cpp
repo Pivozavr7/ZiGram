@@ -1,17 +1,15 @@
-// C ABI bridge between Zig (src/gui) and SDL3 + Dear ImGui.
+// Window, GPU device, events and the frame loop of the C ABI bridge.
 //
-// SDL structs (SDL_Event, SDL_GPUColorTargetInfo) and the C++ ImGui API are
-// painful to replicate in Zig, so the GUI talks to this small interface.
-// Keep every call tiny and stateless where possible; SDL/ImGui globals live
-// here in static storage.
+// This file owns the SDL objects and the Dear ImGui context: both live and
+// die together with the window. The widget calls and the QR code have their
+// own translation units.
 
 #include <SDL3/SDL.h>
 #include <cstdint>
-#include <string>
+#include "gfx_shim.h"
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_sdlgpu3.h"
-#include "qrcodegen.h"
 
 namespace {
 
@@ -29,13 +27,6 @@ int g_render_height = 0;
 } // namespace
 
 extern "C" {
-
-typedef enum {
-    ZIG_GFX_EVENT_NONE = 0,
-    ZIG_GFX_EVENT_QUIT,
-    ZIG_GFX_EVENT_WINDOW_CLOSE,
-    ZIG_GFX_EVENT_OTHER,
-} zig_gfx_event;
 
 // Copies the last SDL error into buf; returns false when there is none.
 bool zig_gfx_get_error(char* buf, unsigned size)
@@ -220,147 +211,6 @@ void zig_gfx_render(float clear_r, float clear_g, float clear_b, float clear_a)
     ImGui_ImplSDLGPU3_RenderDrawData(draw_data, command_buffer, render_pass);
     SDL_EndGPURenderPass(render_pass);
     SDL_SubmitGPUCommandBuffer(command_buffer);
-}
-
-// --- widget bridge -----------------------------------------------------------
-
-void zig_gfx_set_next_window_pos(float x, float y)
-{
-    ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Once);
-}
-
-void zig_gfx_set_next_window_size(float width, float height)
-{
-    ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Once);
-}
-
-bool zig_gfx_begin(const char* title)
-{
-    return ImGui::Begin(title);
-}
-
-void zig_gfx_end(void)
-{
-    ImGui::End();
-}
-
-void zig_gfx_text(const char* text, unsigned size)
-{
-    ImGui::TextUnformatted(text, text + size);
-}
-
-void zig_gfx_text_disabled(const char* text, unsigned size)
-{
-    ImGui::TextDisabled("%.*s", (int)size, text);
-}
-
-void zig_gfx_text_error(const char* text, unsigned size)
-{
-    ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%.*s", (int)size, text);
-}
-
-void zig_gfx_separator(void)
-{
-    ImGui::Separator();
-}
-
-bool zig_gfx_button(const char* label)
-{
-    return ImGui::Button(label);
-}
-
-bool zig_gfx_input_text(const char* label, char* buf, unsigned size)
-{
-    return ImGui::InputText(label, buf, size);
-}
-
-bool zig_gfx_input_text_password(const char* label, char* buf, unsigned size)
-{
-    return ImGui::InputText(label, buf, size, ImGuiInputTextFlags_Password);
-}
-
-// Opens a child region; a size of 0 means "use the remaining space".
-bool zig_gfx_begin_child(const char* label, float size_x, float size_y)
-{
-    return ImGui::BeginChild(label, ImVec2(size_x, size_y), ImGuiChildFlags_None);
-}
-
-void zig_gfx_end_child(void)
-{
-    ImGui::EndChild();
-}
-
-bool zig_gfx_selectable(const char* label, bool selected)
-{
-    return ImGui::Selectable(label, selected);
-}
-
-bool zig_gfx_input_text_multiline(const char* label, char* buf, unsigned size)
-{
-    return ImGui::InputTextMultiline(
-        label,
-        buf,
-        size,
-        ImVec2(0.0f, 60.0f),
-        ImGuiInputTextFlags_AllowTabInput);
-}
-
-void zig_gfx_same_line(void)
-{
-    ImGui::SameLine();
-}
-
-// Draws a QR code for the given text; scale is the pixel size of one module.
-// Returns false when the text does not fit into the supported versions.
-bool zig_gfx_qr(const char* text, unsigned size, unsigned scale)
-{
-    if (text == nullptr || size == 0 || scale == 0)
-        return false;
-
-    static uint8_t temp_buffer[qrcodegen_BUFFER_LEN_MAX];
-    static uint8_t qrcode[qrcodegen_BUFFER_LEN_MAX];
-
-    const std::string payload(text, size);
-    if (!qrcodegen_encodeText(
-            payload.c_str(),
-            temp_buffer,
-            qrcode,
-            qrcodegen_Ecc_MEDIUM,
-            1,
-            10,
-            qrcodegen_Mask_AUTO,
-            true))
-        return false;
-
-    const int modules = qrcodegen_getSize(qrcode);
-    const float pixel = static_cast<float>(scale);
-    const float width = static_cast<float>(modules) * pixel;
-
-    const ImVec2 origin = ImGui::GetCursorScreenPos();
-    const ImVec2 available = ImGui::GetContentRegionAvail();
-    const float x = origin.x + (available.x - width) * 0.5f;
-    const float y = origin.y;
-
-    ImDrawList* draw_list = ImGui::GetWindowDrawList();
-    draw_list->AddRectFilled(
-        ImVec2(x, y),
-        ImVec2(x + width, y + width),
-        IM_COL32_WHITE);
-    for (int row = 0; row < modules; ++row) {
-        for (int column = 0; column < modules; ++column) {
-            if (!qrcodegen_getModule(qrcode, column, row))
-                continue;
-            draw_list->AddRectFilled(
-                ImVec2(x + static_cast<float>(column) * pixel,
-                    y + static_cast<float>(row) * pixel),
-                ImVec2(x + static_cast<float>(column + 1) * pixel,
-                    y + static_cast<float>(row + 1) * pixel),
-                IM_COL32_BLACK);
-        }
-    }
-
-    ImGui::Dummy(ImVec2(width, width));
-    return true;
 }
 
 } // extern "C"

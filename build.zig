@@ -78,7 +78,11 @@ pub fn build(b: *std.Build) void {
     // C ABI bridge between the Zig GUI and SDL3 + ImGui.
     imgui_mod.addCSourceFiles(.{
         .root = b.path("src/ui"),
-        .files = &.{"gfx_shim.cpp"},
+        .files = &.{
+            "gfx_shim.cpp",
+            "gfx_widgets.cpp",
+            "gfx_qr.cpp",
+        },
     });
 
     const gui = b.addExecutable(.{

@@ -30,7 +30,7 @@ Immediate-mode GPU interface · no Electron · no Qt · everything configurable
 
 > [!WARNING]
 > **Pre-alpha. ZiGram is not usable as a daily client yet.**
-> The login flow (phone, code, 2FA, QR) is implemented in the GUI. The chat list, message history and everything after it are **planned**. Items in this document are marked as planned until they exist.
+> The login flow (phone, code, 2FA, QR) and a first client view (chat list, message history, sending) are implemented in the GUI. Editing messages, media, themes and everything after it are **planned**. Items in this document are marked as planned until they exist.
 
 The project is currently in a cleanup phase: splitting early prototype files into small modules before the interface grows. Progress is tracked in the [roadmap](#roadmap).
 
@@ -53,7 +53,7 @@ Everything below is **planned** unless stated otherwise.
 | | |
 |---|---|
 | 🔑 **Login** | Phone number, code, 2FA password, QR login. *Implemented, not yet battle-tested.* |
-| 💬 **Chats** | Private chats and groups first; channels, topics and secret chats later |
+| 💬 **Chats** | Private chats and groups first; channels, topics and secret chats later. *Chat list, message history and sending work in the GUI.* |
 | 🎨 **Three designs** | **MD3** (Material 3), **Linear** (dense, minimal), **Flat** (tdesktop-inspired, refined) |
 | 🎛️ **Deep customization** | Colors, rounding, density, fonts and panel widths, all in config files |
 | ⌨️ **Keybinds** | tdesktop-compatible defaults, fully remappable, optional vim-style navigation |
@@ -171,18 +171,19 @@ Themes and keybinds will be separate files you can edit and reload (**planned**)
 **Stage R: cleanup** (current)
 Split the prototype into small single-purpose modules before the UI grows.
 
-- [ ] `td.zig` → `core/td/`
-- [ ] `store.zig` → `core/store/`
-- [ ] `gui/main.zig` → `app/` + `ui/`
-- [ ] Small fixes: long 2FA passwords, CI runs tests in the build job
+- [x] `store.zig` → `core/store/`
+- [x] `gui/main.zig` → `app/` + `ui/`
+- [x] Long 2FA passwords, secret buffers cleared after use
+- [ ] CI runs tests in the build job
 
 **MVP 0: the core (no GUI)**
 
 - [x] Repo skeleton, build, `fetch-tdlib.sh`, `tdlib.lock`
 - [x] Runtime-loaded TDLib, receiver thread, event queue, request/response matching
 - [x] Authorization: phone, code, 2FA, QR
-- [ ] Chat list and message history
-- [ ] Send, edit, delete; read marks; file downloads
+- [x] Chat list and message history parsing
+- [x] Send a text message
+- [ ] Edit, delete, read marks; file downloads
 - [ ] `zigram-cli`: log in, list chats, read and send messages live
 
 **MVP 1: the interface**
@@ -191,7 +192,8 @@ Split the prototype into small single-purpose modules before the UI grows.
 - [x] Login screen wired to the authorization state machine
 - [ ] Theme tokens and `.zon` loader
 - [ ] Text check: Cyrillic, CJK, color emoji, IME
-- [ ] Chat list, conversation view with virtual scrolling, input
+- [x] Basic chat list, conversation view and message input
+- [ ] Virtual scrolling for long histories
 - [ ] Three themes, configurable keybinds
 - [ ] D-Bus notifications, search
 - [ ] Media: photos, stickers, voice, video notes, GIFs

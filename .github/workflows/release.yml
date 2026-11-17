@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build and attach (defaults to the current ref)
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    name: Package Linux x86_64
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Install Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.17.1
+
+      - name: Install SDL build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libx11-dev libxext-dev libxcursor-dev libxrandr-dev \
+            libxfixes-dev libxi-dev libxss-dev libxtst-dev \
+            libwayland-dev wayland-protocols libxkbcommon-dev \
+            libegl1-mesa-dev libasound2-dev libdbus-1-dev libudev-dev
+
+      - name: Fetch dependencies
+        run: bash scripts/fetch-deps.sh
+
+      - name: Build SDL3
+        run: bash scripts/build-sdl.sh
+
+      - name: Fetch TDLib
+        run: bash scripts/fetch-tdlib.sh
+
+      - name: Package
+        run: bash scripts/package-release.sh "${TAG#v}"
+
+      - name: Smoke test the packaged CLI
+        run: ".zig-cache/dist/zigram-${TAG#v}/zigram-cli version"
+
+      - name: Attach the tarball to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" .zig-cache/dist/*.tar.gz --clobber
+          else
+            gh release create "$TAG" .zig-cache/dist/*.tar.gz \
+              --title "ZiGram $TAG" --generate-notes
+          fi

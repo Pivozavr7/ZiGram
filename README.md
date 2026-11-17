@@ -146,6 +146,8 @@ zig build run-gui             # launch the GUI (needs Vulkan)
 zig build run-cli -- version  # headless client
 ```
 
+No compiler needed for a prebuilt copy: each [release](https://github.com/Pivozavr7/ZiGram/releases) carries a Linux x86_64 tarball with `zigram-gui`, `zigram-cli` and `libtdjson.so`; extract it and run the binaries from the extracted directory. Every release is described in [CHANGELOG.md](CHANGELOG.md).
+
 ## Configuration
 
 ZiGram needs **your own API credentials**. Create an application at [my.telegram.org](https://my.telegram.org), then write `~/.config/zigram/config.zon`:

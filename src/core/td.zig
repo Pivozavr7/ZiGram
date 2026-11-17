@@ -6,6 +6,7 @@
 
 const std = @import("std");
 
+const td_options = @import("td/options.zig");
 const search = @import("td/search.zig");
 
 const Io = std.Io;
@@ -15,6 +16,7 @@ const assert = std.debug.assert;
 test {
     // Pull the tests of the split-up modules into the `td` test target.
     _ = search;
+    _ = td_options;
 }
 
 /// TDLib version ZiGram is developed and tested against.
@@ -28,6 +30,8 @@ pub const Candidate = search.Candidate;
 pub const Candidates = search.Candidates;
 pub const SearchOptions = search.SearchOptions;
 pub const searchCandidatesAlloc = search.searchCandidatesAlloc;
+pub const parseOptionString = td_options.parseOptionString;
+pub const parseEventExtra = td_options.parseEventExtra;
 
 /// Function pointers exported by `libtdjson.so`.
 pub const Symbols = struct {
@@ -65,9 +69,7 @@ pub const InitError = error{
 
 pub const ExecuteError = error{NullResponse} || std.mem.Allocator.Error;
 
-pub const VersionError = ExecuteError ||
-    std.json.ParseError(std.json.Scanner) ||
-    error{ UnexpectedResponse, TdLibError };
+pub const VersionError = ExecuteError || td_options.OptionParseError;
 
 /// A loaded TDLib library and its symbol table.
 pub const Library = struct {
@@ -165,7 +167,7 @@ pub const Library = struct {
         defer allocator.free(response);
 
         var parsed = try std.json.parseFromSlice(
-            OptionResponse,
+            td_options.OptionResponse,
             allocator,
             response,
             .{ .ignore_unknown_fields = true },
@@ -177,39 +179,6 @@ pub const Library = struct {
         }
     }
 };
-
-const OptionResponse = struct {
-    @"@type": []const u8,
-    value: ?[]const u8 = null,
-    code: ?i64 = null,
-    message: ?[]const u8 = null,
-};
-
-/// Extracts `value` from a TDLib `optionValueString` response.
-///
-/// Unknown fields are ignored on purpose: TDLib adds fields between versions.
-pub fn parseOptionString(
-    allocator: std.mem.Allocator,
-    response_json: []const u8,
-) VersionError![]u8 {
-    var parsed = try std.json.parseFromSlice(
-        OptionResponse,
-        allocator,
-        response_json,
-        .{ .ignore_unknown_fields = true },
-    );
-    defer parsed.deinit();
-
-    const response = parsed.value;
-    if (std.mem.eql(u8, response.@"@type", "optionValueString")) {
-        const value = response.value orelse return error.UnexpectedResponse;
-        return allocator.dupe(u8, value);
-    }
-    if (std.mem.eql(u8, response.@"@type", "error")) {
-        return error.TdLibError;
-    }
-    return error.UnexpectedResponse;
-}
 
 pub const ClientOptions = struct {
     /// Maximum number of events buffered between the receiver thread and the
@@ -385,25 +354,6 @@ pub const Client = struct {
     }
 };
 
-const EventHeader = struct {
-    @"@type": []const u8,
-    @"@extra": ?u64 = null,
-};
-
-fn parseEventExtra(
-    allocator: std.mem.Allocator,
-    event_json: []const u8,
-) std.json.ParseError(std.json.Scanner)!?u64 {
-    var parsed = try std.json.parseFromSlice(
-        EventHeader,
-        allocator,
-        event_json,
-        .{ .ignore_unknown_fields = true },
-    );
-    defer parsed.deinit();
-    return parsed.value.@"@extra";
-}
-
 fn timeoutMs(ms: u32) Io.Timeout {
     return .{ .duration = .{
         .raw = Io.Duration.fromMilliseconds(@intCast(ms)),
@@ -528,64 +478,6 @@ const EventQueue = struct {
         self.not_empty.broadcast(io);
     }
 };
-
-test "parseOptionString reads a string option" {
-    const version = try parseOptionString(
-        std.testing.allocator,
-        "{\"@type\":\"optionValueString\",\"value\":\"1.8.70\"}",
-    );
-    defer std.testing.allocator.free(version);
-
-    try std.testing.expectEqualStrings("1.8.70", version);
-}
-
-test "parseOptionString ignores unknown response fields" {
-    const version = try parseOptionString(
-        std.testing.allocator,
-        "{\"@type\":\"optionValueString\",\"value\":\"1.8.70\",\"future\":true}",
-    );
-    defer std.testing.allocator.free(version);
-
-    try std.testing.expectEqualStrings("1.8.70", version);
-}
-
-test "parseOptionString reports a TDLib error" {
-    try std.testing.expectError(
-        error.TdLibError,
-        parseOptionString(
-            std.testing.allocator,
-            "{\"@type\":\"error\",\"code\":404,\"message\":\"Option not found\"}",
-        ),
-    );
-}
-
-test "parseOptionString rejects an unexpected option type" {
-    try std.testing.expectError(
-        error.UnexpectedResponse,
-        parseOptionString(
-            std.testing.allocator,
-            "{\"@type\":\"optionValueEmpty\"}",
-        ),
-    );
-}
-
-test "parseEventExtra reads the extra id" {
-    const extra = try parseEventExtra(
-        std.testing.allocator,
-        "{\"@type\":\"updateSome\",\"@extra\":42,\"unknown\":{}}",
-    );
-
-    try std.testing.expectEqual(@as(?u64, 42), extra);
-}
-
-test "parseEventExtra returns null without an extra id" {
-    const extra = try parseEventExtra(
-        std.testing.allocator,
-        "{\"@type\":\"updateNewMessage\",\"message\":{}}",
-    );
-
-    try std.testing.expectEqual(@as(?u64, null), extra);
-}
 
 test "event queue preserves order and closes cleanly" {
     const allocator = std.testing.allocator;

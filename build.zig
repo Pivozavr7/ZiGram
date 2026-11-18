@@ -141,11 +141,22 @@ pub fn build(b: *std.Build) void {
     });
     const run_qr_tests = b.addRunArtifact(qr_tests);
 
+    // The theme is plain data: tokens, a built-in theme and a ZON loader.
+    const theme_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/ui/theme/root.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const run_theme_tests = b.addRunArtifact(theme_tests);
+
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_core_tests.step);
     test_step.dependOn(&run_cli_tests.step);
     test_step.dependOn(&run_app_tests.step);
     test_step.dependOn(&run_qr_tests.step);
+    test_step.dependOn(&run_theme_tests.step);
 
     const fmt_step = b.addFmt(.{
         .paths = b.pathList(&.{ "src", "build.zig" }),

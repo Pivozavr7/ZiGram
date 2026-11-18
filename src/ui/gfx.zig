@@ -5,6 +5,8 @@
 
 const std = @import("std");
 
+const theme = @import("theme/root.zig");
+
 /// What the window system reported since the last poll.
 pub const Event = enum(c_int) {
     none = 0,
@@ -13,7 +15,12 @@ pub const Event = enum(c_int) {
     other,
 };
 
-extern fn zig_gfx_init(title: [*:0]const u8, width: c_int, height: c_int) bool;
+extern fn zig_gfx_init(
+    title: [*:0]const u8,
+    width: c_int,
+    height: c_int,
+    tokens: *const theme.Tokens,
+) bool;
 extern fn zig_gfx_quit() void;
 extern fn zig_gfx_get_error(buf: [*]u8, size: c_uint) bool;
 extern fn zig_gfx_minimized() bool;
@@ -35,13 +42,19 @@ extern fn zig_gfx_input_text_password(label: [*:0]const u8, buf: [*]u8, size: c_
 extern fn zig_gfx_begin_child(label: [*:0]const u8, size_x: f32, size_y: f32) bool;
 extern fn zig_gfx_end_child() void;
 extern fn zig_gfx_selectable(label: [*:0]const u8, selected: bool) bool;
-extern fn zig_gfx_input_text_multiline(label: [*:0]const u8, buf: [*]u8, size: c_uint) bool;
+extern fn zig_gfx_input_text_multiline(
+    label: [*:0]const u8,
+    buf: [*]u8,
+    size: c_uint,
+    height: f32,
+) bool;
 extern fn zig_gfx_same_line() void;
 extern fn zig_gfx_draw_qr(modules: [*]const bool, count: c_int, scale: c_int) bool;
 
-/// Opens the window; returns false when the GPU device is unavailable.
+/// Opens the window with the current theme; returns false when the GPU
+/// device is unavailable.
 pub fn init(title: [*:0]const u8, width: c_int, height: c_int) bool {
-    return zig_gfx_init(title, width, height);
+    return zig_gfx_init(title, width, height, theme.current());
 }
 
 pub fn quit() void {
@@ -117,8 +130,9 @@ pub fn inputPassword(label: [*:0]const u8, buf: []u8) bool {
     return zig_gfx_input_text_password(label, buf.ptr, @intCast(buf.len));
 }
 
-pub fn inputMultiline(label: [*:0]const u8, buf: []u8) bool {
-    return zig_gfx_input_text_multiline(label, buf.ptr, @intCast(buf.len));
+/// A multi line input of the given height in pixels.
+pub fn inputMultiline(label: [*:0]const u8, buf: []u8, height: f32) bool {
+    return zig_gfx_input_text_multiline(label, buf.ptr, @intCast(buf.len), height);
 }
 
 pub fn beginChild(label: [*:0]const u8, size_x: f32, size_y: f32) bool {

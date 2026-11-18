@@ -80,7 +80,8 @@ fn drawFrame(
         }
     }
     gfx.end();
-    gfx.render(0.09, 0.09, 0.11, 1.0);
+    const background = zigram_ui.theme.current().palette.background;
+    gfx.render(background.r, background.g, background.b, background.a);
     return false;
 }
 

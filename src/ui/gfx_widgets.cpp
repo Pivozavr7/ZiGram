@@ -7,6 +7,15 @@
 #include "gfx_shim.h"
 #include "imgui.h"
 
+namespace {
+
+ImVec4 vec4(const zig_gfx_color& color)
+{
+    return ImVec4(color.r, color.g, color.b, color.a);
+}
+
+} // namespace
+
 extern "C" {
 
 void zig_gfx_set_next_window_pos(float x, float y)
@@ -41,7 +50,7 @@ void zig_gfx_text_disabled(const char* text, unsigned size)
 
 void zig_gfx_text_error(const char* text, unsigned size)
 {
-    ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%.*s", (int)size, text);
+    ImGui::TextColored(vec4(zig_gfx_get_theme()->error_color), "%.*s", (int)size, text);
 }
 
 void zig_gfx_separator(void)
@@ -80,13 +89,15 @@ bool zig_gfx_selectable(const char* label, bool selected)
     return ImGui::Selectable(label, selected);
 }
 
-bool zig_gfx_input_text_multiline(const char* label, char* buf, unsigned size)
+// A multi line input of the given height in pixels.
+bool zig_gfx_input_text_multiline(
+    const char* label, char* buf, unsigned size, float height)
 {
     return ImGui::InputTextMultiline(
         label,
         buf,
         size,
-        ImVec2(0.0f, 60.0f),
+        ImVec2(0.0f, height),
         ImGuiInputTextFlags_AllowTabInput);
 }
 

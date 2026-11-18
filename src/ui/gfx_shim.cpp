@@ -17,12 +17,64 @@ SDL_Window* g_window = nullptr;
 SDL_GPUDevice* g_device = nullptr;
 bool g_initialized = false;
 
+// The display scale of the primary monitor: the theme sizes are logical
+// pixels and are multiplied by it.
+float g_dpi_scale = 1.0f;
+
+// The theme applied last, kept for the widget calls.
+zig_gfx_theme g_theme = {};
+
 // Frames to skip after a window resize: the swapchain still carries the old
 // size while ImGui already renders with the new one, and SDL asserts when
 // the viewport exceeds the render target.
 int g_resize_frames_pending = 0;
 int g_render_width = 0;
 int g_render_height = 0;
+
+ImVec4 vec4(const zig_gfx_color& color)
+{
+    return ImVec4(color.r, color.g, color.b, color.a);
+}
+
+ImVec4 withAlpha(const ImVec4& color, float alpha)
+{
+    return ImVec4(color.x, color.y, color.z, alpha);
+}
+
+// The theme drives the style: colors, rounding, spacing, padding and the
+// font scale. The sizes are logical pixels, multiplied by the display
+// scale the same way ScaleAllSizes treats the defaults.
+void applyTheme(const zig_gfx_theme& theme)
+{
+    g_theme = theme;
+
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.FrameRounding = theme.rounding * g_dpi_scale;
+    style.GrabRounding = theme.rounding * g_dpi_scale;
+    style.ItemSpacing =
+        ImVec2(theme.spacing.x * g_dpi_scale, theme.spacing.y * g_dpi_scale);
+    style.WindowPadding = ImVec2(theme.padding * g_dpi_scale, theme.padding * g_dpi_scale);
+    style.FontScaleMain = theme.font_size / style.FontSizeBase;
+
+    // Buttons and selections take their color from the accent; the states
+    // differ in opacity the way the stock dark style does.
+    const ImVec4 accent = vec4(theme.accent);
+    ImVec4* colors = style.Colors;
+    colors[ImGuiCol_Text] = vec4(theme.text);
+    colors[ImGuiCol_TextDisabled] = vec4(theme.text_disabled);
+    colors[ImGuiCol_WindowBg] = vec4(theme.surface);
+    colors[ImGuiCol_ChildBg] = vec4(theme.surface);
+    colors[ImGuiCol_Button] = withAlpha(accent, 0.40f);
+    colors[ImGuiCol_ButtonHovered] = accent;
+    colors[ImGuiCol_ButtonActive] = accent;
+    colors[ImGuiCol_Header] = withAlpha(accent, 0.31f);
+    colors[ImGuiCol_HeaderHovered] = withAlpha(accent, 0.80f);
+    colors[ImGuiCol_HeaderActive] = accent;
+    colors[ImGuiCol_CheckMark] = accent;
+    colors[ImGuiCol_SliderGrab] = accent;
+    colors[ImGuiCol_SliderGrabActive] = accent;
+    colors[ImGuiCol_NavCursor] = withAlpha(accent, 0.80f);
+}
 
 } // namespace
 
@@ -38,12 +90,13 @@ bool zig_gfx_get_error(char* buf, unsigned size)
     return true;
 }
 
-bool zig_gfx_init(const char* title, int width, int height)
+bool zig_gfx_init(const char* title, int width, int height, const zig_gfx_theme* theme)
 {
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))
         return false;
 
     float scale = SDL_GetDisplayContentScale(SDL_GetPrimaryDisplay());
+    g_dpi_scale = scale;
     g_window = SDL_CreateWindow(
         title,
         (int)(width * scale),
@@ -73,10 +126,10 @@ bool zig_gfx_init(const char* title, int width, int height)
 
     ImGuiStyle& style = ImGui::GetStyle();
     ImGui::StyleColorsDark();
-    style.FrameRounding = 3.0f;
-    style.GrabRounding = 3.0f;
     style.ScaleAllSizes(scale);
     style.FontScaleDpi = scale;
+    if (theme != nullptr)
+        applyTheme(*theme);
 
     ImGui_ImplSDL3_InitForSDLGPU(g_window);
 
@@ -90,6 +143,11 @@ bool zig_gfx_init(const char* title, int width, int height)
 
     g_initialized = true;
     return true;
+}
+
+const zig_gfx_theme* zig_gfx_get_theme(void)
+{
+    return &g_theme;
 }
 
 void zig_gfx_quit(void)

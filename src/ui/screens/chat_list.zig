@@ -5,6 +5,7 @@ const std = @import("std");
 const zigram_app = @import("zigram_app");
 
 const gfx = @import("../gfx.zig");
+const theme = @import("../theme/root.zig");
 const widgets = @import("../widgets.zig");
 
 const Session = zigram_app.session.Session;
@@ -27,7 +28,8 @@ pub const ChatList = struct {
         gfx.sameLine();
         self.drawMessages(session, scratch);
 
-        _ = gfx.inputMultiline("Message", self.input[0..]);
+        const tokens = theme.current();
+        _ = gfx.inputMultiline("Message", self.input[0..], tokens.composer_height);
         if (gfx.button("Send")) {
             self.send(session) catch |err| {
                 session.reportError("sending the message", err);
@@ -40,7 +42,8 @@ pub const ChatList = struct {
 
     fn drawChats(self: *ChatList, session: *Session, scratch: std.mem.Allocator) void {
         _ = self;
-        if (!gfx.beginChild("Chats", 280, 460)) return;
+        const tokens = theme.current();
+        if (!gfx.beginChild("Chats", tokens.panel_width, tokens.panel_height)) return;
 
         if (session.state.chats.items.len == 0) {
             widgets.disabled("no chats yet");
@@ -63,7 +66,8 @@ pub const ChatList = struct {
 
     fn drawMessages(self: *ChatList, session: *Session, scratch: std.mem.Allocator) void {
         _ = self;
-        if (!gfx.beginChild("Messages", 0, 460)) return;
+        const tokens = theme.current();
+        if (!gfx.beginChild("Messages", 0, tokens.panel_height)) return;
 
         const chat_id = session.state.selectedChatId();
         if (chat_id) |id| {

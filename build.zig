@@ -136,10 +136,21 @@ pub fn build(b: *std.Build) void {
     });
     const run_app_tests = b.addRunArtifact(app_tests);
 
+    // The QR encoder is pure Zig with no GUI or libc dependencies.
+    const qr_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/ui/qr/root.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const run_qr_tests = b.addRunArtifact(qr_tests);
+
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_core_tests.step);
     test_step.dependOn(&run_cli_tests.step);
     test_step.dependOn(&run_app_tests.step);
+    test_step.dependOn(&run_qr_tests.step);
 
     const fmt_step = b.addFmt(.{
         .paths = b.pathList(&.{ "src", "build.zig" }),

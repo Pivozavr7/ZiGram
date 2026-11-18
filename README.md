@@ -157,7 +157,7 @@ git clone https://github.com/Pivozavr7/ZiGram
 cd ZiGram
 
 ./scripts/fetch-tdlib.sh      # prebuilt tdlib (tdlib.lock pins the version)
-./scripts/fetch-deps.sh       # sdl3, dear imgui and qr sources (*.lock files)
+./scripts/fetch-deps.sh       # sdl3 and dear imgui sources (*.lock files)
 ./scripts/build-sdl.sh        # builds vendor/sdl/libSDL3.a (needs gcc + cmake)
 
 zig build                     # core, cli and gui
@@ -288,7 +288,7 @@ standing on the shoulders of:
 | [tdlib](https://github.com/tdlib/td) | boost software license 1.0 | telegram protocol |
 | [dear imgui](https://github.com/ocornut/imgui) | mit | ui |
 | [sdl3](https://libsdl.org) | zlib | window, input, gpu |
-| [qr code generator](https://github.com/nayuki/QR-Code-generator) by nayuki | mit | qr login |
+| [qr code generator](https://github.com/nayuki/QR-Code-generator) by nayuki | mit | qr encoder, ported to zig |
 
 <br>
 

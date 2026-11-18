@@ -5,6 +5,7 @@ const std = @import("std");
 const zigram_app = @import("zigram_app");
 
 const gfx = @import("../gfx.zig");
+const qr = @import("../qr/root.zig");
 const widgets = @import("../widgets.zig");
 
 const Session = zigram_app.session.Session;
@@ -14,11 +15,22 @@ pub const Outcome = enum { keep_running, quit };
 
 /// The login flow: phone number, code, 2FA password and QR code.
 pub const Login = struct {
+    allocator: std.mem.Allocator,
+
     /// Bounded text buffers; ImGui requires a zero-terminated buffer.
     phone: [32]u8 = @splat(0),
     code: [16]u8 = @splat(0),
     /// Telegram allows long 2FA passwords; the buffer is cleared after use.
     password: [256]u8 = @splat(0),
+
+    /// The encoded QR code and the link it was built from; the link changes
+    /// about once every thirty seconds, so the matrix is reused in between.
+    qr_code: ?qr.Code = null,
+    qr_link: []const u8 = &.{},
+
+    pub fn deinit(self: *Login) void {
+        self.freeQr();
+    }
 
     /// Draws the screen of the current authorization state.
     pub fn draw(self: *Login, session: *Session) Outcome {
@@ -114,18 +126,45 @@ pub const Login = struct {
     }
 
     fn drawQr(self: *Login, session: *Session) Outcome {
-        _ = self;
         widgets.text("Scan this code in Telegram:");
         widgets.disabled("Settings -> Devices -> Link Desktop Device");
-        if (qrLink(session)) |link| {
-            if (!gfx.qr(link, 5)) {
-                widgets.errorText("could not render the QR code");
-            }
-        } else {
+        const link = qrLink(session);
+        if (link == null) {
             widgets.errorText("waiting for the QR link");
+        } else if (!self.drawCachedQr(link.?)) {
+            widgets.errorText("could not render the QR code");
         }
         if (gfx.button("Quit")) return .quit;
         return .keep_running;
+    }
+
+    /// Encodes the QR link once and draws the cached matrix; returns false
+    /// when the link does not fit into the supported versions.
+    fn drawCachedQr(self: *Login, link: []const u8) bool {
+        const unchanged = if (self.qr_code) |*code|
+            code.size > 0 and std.mem.eql(u8, self.qr_link, link)
+        else
+            false;
+        if (!unchanged) {
+            var code = qr.encode(self.allocator, link, .medium) catch return false;
+            const link_copy = self.allocator.dupe(u8, link) catch {
+                code.deinit();
+                return false;
+            };
+            self.freeQr();
+            self.qr_code = code;
+            self.qr_link = link_copy;
+        }
+        const code = &self.qr_code.?;
+        return gfx.qr(code.modules, code.size, 0);
+    }
+
+    /// Releases the cached QR code and the copy of its link.
+    fn freeQr(self: *Login) void {
+        if (self.qr_code) |*code| code.deinit();
+        self.qr_code = null;
+        if (self.qr_link.len > 0) self.allocator.free(self.qr_link);
+        self.qr_link = &.{};
     }
 
     fn drawFatal(self: *Login, session: *Session) Outcome {

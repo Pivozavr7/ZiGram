@@ -36,7 +36,8 @@ pub fn main(init: std.process.Init) !void {
     }
     defer gfx.quit();
 
-    var login_screen = Login{};
+    var login_screen = Login{ .allocator = init.gpa };
+    defer login_screen.deinit();
     var chat_screen = ChatList{};
 
     var frame_arena = std.heap.ArenaAllocator.init(init.gpa);

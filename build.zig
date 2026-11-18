@@ -59,11 +59,6 @@ pub fn build(b: *std.Build) void {
     imgui_mod.addIncludePath(b.path("vendor/imgui-1.93.0"));
     imgui_mod.addIncludePath(b.path("vendor/imgui-1.93.0/backends"));
     imgui_mod.addIncludePath(b.path("vendor/SDL3-3.4.20/include"));
-    imgui_mod.addIncludePath(b.path("vendor/QR-Code-generator-1.8.0/c"));
-    imgui_mod.addCSourceFiles(.{
-        .root = b.path("vendor/QR-Code-generator-1.8.0/c"),
-        .files = &.{"qrcodegen.c"},
-    });
     imgui_mod.addCSourceFiles(.{
         .root = b.path("vendor/imgui-1.93.0"),
         .files = &.{

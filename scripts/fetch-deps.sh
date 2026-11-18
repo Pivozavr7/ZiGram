@@ -71,8 +71,3 @@ fetch_one \
     "imgui" \
     "https://github.com/ocornut/imgui/archive/refs/tags/v$(read_lock_value version "${repo_root}/imgui.lock").tar.gz" \
     "${dest_dir}"
-
-fetch_one \
-    "QR-Code-generator" \
-    "$(read_lock_value url "${repo_root}/QR-Code-generator.lock")" \
-    "${dest_dir}"

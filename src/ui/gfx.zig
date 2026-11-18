@@ -37,7 +37,7 @@ extern fn zig_gfx_end_child() void;
 extern fn zig_gfx_selectable(label: [*:0]const u8, selected: bool) bool;
 extern fn zig_gfx_input_text_multiline(label: [*:0]const u8, buf: [*]u8, size: c_uint) bool;
 extern fn zig_gfx_same_line() void;
-extern fn zig_gfx_qr(text: [*]const u8, size: c_uint, scale: c_uint) bool;
+extern fn zig_gfx_draw_qr(modules: [*]const bool, count: c_int, scale: c_int) bool;
 
 /// Opens the window; returns false when the GPU device is unavailable.
 pub fn init(title: [*:0]const u8, width: c_int, height: c_int) bool {
@@ -137,7 +137,11 @@ pub fn sameLine() void {
     zig_gfx_same_line();
 }
 
-/// Draws a QR code for `value`; returns false when the code cannot be built.
-pub fn qr(value: []const u8, scale: u32) bool {
-    return zig_gfx_qr(value.ptr, @intCast(value.len), scale);
+/// Draws an encoded QR code: `modules` holds `size * size` entries, `true`
+/// for the dark ones. A scale of zero lets the shim pick the pixel size that
+/// fits the window; returns false when the matrix is empty or unreasonably
+/// large.
+pub fn qr(modules: []const bool, size: usize, scale: u32) bool {
+    if (modules.len == 0 or modules.len != size * size) return false;
+    return zig_gfx_draw_qr(modules.ptr, @intCast(size), @intCast(scale));
 }

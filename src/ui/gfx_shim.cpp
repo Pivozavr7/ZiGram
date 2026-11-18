@@ -54,7 +54,11 @@ void applyTheme(const zig_gfx_theme& theme)
     style.ItemSpacing =
         ImVec2(theme.spacing.x * g_dpi_scale, theme.spacing.y * g_dpi_scale);
     style.WindowPadding = ImVec2(theme.padding * g_dpi_scale, theme.padding * g_dpi_scale);
-    style.FontScaleMain = theme.font_size / style.FontSizeBase;
+    // The theme size is the base size in logical pixels; ImGui multiplies it
+    // by FontScaleDpi itself. FontSizeBase is 0 until the first frame, so it
+    // cannot be divided into a scale factor here.
+    style.FontSizeBase = theme.font_size;
+    style.FontScaleMain = 1.0f;
 
     // Buttons and selections take their color from the accent; the states
     // differ in opacity the way the stock dark style does.

@@ -68,8 +68,14 @@ pub fn build(b: *std.Build) void {
             "imgui_widgets.cpp",
             "backends/imgui_impl_sdl3.cpp",
             "backends/imgui_impl_sdlgpu3.cpp",
+            // FreeType renders color emoji (CBDT bitmaps) which the stb
+            // loader cannot; without it emoji fall back to monochrome.
+            "misc/freetype/imgui_freetype.cpp",
         },
     });
+    imgui_mod.addCMacro("IMGUI_ENABLE_FREETYPE", "1");
+    // Headers and flags come from pkg-config (see README requirements).
+    imgui_mod.linkSystemLibrary("freetype2", .{});
     // C ABI bridge between the Zig GUI and SDL3 + ImGui.
     imgui_mod.addCSourceFiles(.{
         .root = b.path("src/ui"),

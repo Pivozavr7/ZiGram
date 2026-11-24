@@ -117,3 +117,16 @@ test "updateMessageContent parses the new content" {
     try std.testing.expectEqual(@as(i64, 10), update.event.message_content.message_id);
     try std.testing.expectEqualStrings("edited", update.event.message_content.content.text);
 }
+
+test "updateDeleteMessages parses the ids" {
+    var update = (try updates.Update.parse(
+        std.testing.allocator,
+        "{\"@type\":\"updateDeleteMessages\",\"chat_id\":1001,\"message_ids\":[10,11],\"is_permanent\":true}",
+    )) orelse return error.TestUnexpectedResult;
+    defer update.deinit();
+
+    try std.testing.expect(update.event == .messages_deleted);
+    try std.testing.expectEqual(@as(i64, 1001), update.event.messages_deleted.chat_id);
+    try std.testing.expectEqual(@as(usize, 2), update.event.messages_deleted.message_ids.len);
+    try std.testing.expect(update.event.messages_deleted.is_permanent);
+}

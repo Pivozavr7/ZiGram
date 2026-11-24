@@ -36,6 +36,13 @@ pub const Event = union(enum) {
         message_id: i64,
         content: store.Content,
     },
+    /// `updateDeleteMessages`: messages were deleted from a chat. Only
+    /// permanent deletions remove them; the others can still be undeleted.
+    messages_deleted: struct {
+        chat_id: i64,
+        message_ids: []i64,
+        is_permanent: bool,
+    },
     /// Unknown `update*` type, or a known type whose payload has an
     /// unexpected shape. The owned name lets a caller log or ignore it.
     other: []u8,
@@ -54,6 +61,7 @@ pub const Update = struct {
             },
             .new_message => |*message| message.deinit(),
             .message_content => |*payload| store.deinitContent(self.allocator, &payload.content),
+            .messages_deleted => |payload| self.allocator.free(payload.message_ids),
             .other => |name| self.allocator.free(name),
         }
         self.* = undefined;
@@ -114,6 +122,9 @@ fn parseEvent(
     }
     if (std.mem.eql(u8, type_name, "updateMessageContent")) {
         return parseMessageContent(allocator, event_json);
+    }
+    if (std.mem.eql(u8, type_name, "updateDeleteMessages")) {
+        return parseDeleteMessages(allocator, event_json);
     }
     return .{
         .allocator = allocator,
@@ -196,6 +207,35 @@ fn parseMessageContent(
             .chat_id = parsed.value.chat_id,
             .message_id = parsed.value.message_id,
             .content = try store.contentFromPayload(allocator, content_payload),
+        } },
+    };
+}
+
+const DeleteMessagesPayload = struct {
+    chat_id: i64 = 0,
+    message_ids: ?[]i64 = null,
+    is_permanent: bool = false,
+};
+
+fn parseDeleteMessages(
+    allocator: Allocator,
+    event_json: []const u8,
+) ParseError!?Update {
+    var parsed = try std.json.parseFromSlice(
+        DeleteMessagesPayload,
+        allocator,
+        event_json,
+        .{ .ignore_unknown_fields = true },
+    );
+    defer parsed.deinit();
+
+    const ids = parsed.value.message_ids orelse return null;
+    return .{
+        .allocator = allocator,
+        .event = .{ .messages_deleted = .{
+            .chat_id = parsed.value.chat_id,
+            .message_ids = try allocator.dupe(i64, ids),
+            .is_permanent = parsed.value.is_permanent,
         } },
     };
 }

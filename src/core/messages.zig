@@ -86,6 +86,34 @@ pub fn editMessageTextRequest(
     return aw.toOwnedSlice();
 }
 
+/// Builds `deleteMessages` JSON. `revoke` also deletes the messages on
+/// the receiving side, when the chat allows it.
+pub fn deleteMessagesRequest(
+    allocator: Allocator,
+    chat_id: i64,
+    message_ids: []const i64,
+    revoke: bool,
+) RequestError![]u8 {
+    assert(message_ids.len > 0);
+
+    var aw: std.Io.Writer.Allocating = try .initCapacity(allocator, 128 + message_ids.len * 12);
+    errdefer aw.deinit();
+    const writer = &aw.writer;
+
+    try writer.writeAll("{\"@type\":\"deleteMessages\",\"chat_id\":");
+    try writer.print("{d}", .{chat_id});
+    try writer.writeAll(",\"message_ids\":[");
+    for (message_ids, 0..) |message_id, index| {
+        if (index > 0) try writer.writeAll(",");
+        try writer.print("{d}", .{message_id});
+    }
+    try writer.writeAll("],\"revoke\":");
+    try writer.writeAll(if (revoke) "true" else "false");
+    try writer.writeAll("}");
+
+    return aw.toOwnedSlice();
+}
+
 /// A list of messages from a `messages` response.
 pub const MessageList = struct {
     allocator: Allocator,
@@ -167,6 +195,16 @@ test "edit message request escapes the text" {
 
     try std.testing.expectEqualStrings(
         "{\"@type\":\"editMessageText\",\"chat_id\":1001,\"message_id\":10,\"input_message_content\":{\"@type\":\"inputMessageText\",\"text\":{\"@type\":\"formattedText\",\"text\":\"new \\\"text\\\"\"}}}",
+        json,
+    );
+}
+
+test "delete messages request encodes the ids" {
+    const json = try deleteMessagesRequest(std.testing.allocator, 1001, &.{ 10, 11 }, true);
+    defer std.testing.allocator.free(json);
+
+    try std.testing.expectEqualStrings(
+        "{\"@type\":\"deleteMessages\",\"chat_id\":1001,\"message_ids\":[10,11],\"revoke\":true}",
         json,
     );
 }

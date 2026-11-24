@@ -33,6 +33,7 @@ pub const Kind = enum {
     history,
     send_message,
     edit_message,
+    delete_messages,
 };
 
 /// A request sent to TDLib that has not answered yet.
@@ -144,6 +145,19 @@ pub const Commands = struct {
         const json = try messages.editMessageTextRequest(self.allocator, chat_id, message_id, text);
         defer self.allocator.free(json);
         try self.sendChat(.edit_message, json, chat_id);
+    }
+
+    /// Deletes messages of a chat; `revoke` also removes them for the
+    /// receiving side, when the chat allows it.
+    pub fn deleteMessages(
+        self: *Commands,
+        chat_id: i64,
+        message_ids: []const i64,
+        revoke: bool,
+    ) !void {
+        const json = try messages.deleteMessagesRequest(self.allocator, chat_id, message_ids, revoke);
+        defer self.allocator.free(json);
+        try self.sendChat(.delete_messages, json, chat_id);
     }
 
     /// Sends a text message as a reply to another message.

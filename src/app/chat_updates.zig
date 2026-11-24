@@ -58,6 +58,11 @@ pub fn applyUpdate(app_state: *state.State, event: updates.Event) !void {
                 contentText(payload.content),
             );
         },
+        .messages_deleted => |payload| {
+            if (payload.is_permanent) {
+                try app_state.removeMessages(payload.chat_id, payload.message_ids);
+            }
+        },
         .other => {},
     }
 }
@@ -95,7 +100,7 @@ pub fn applyResponse(
                 );
             }
         },
-        .send_message, .edit_message => {},
+        .send_message, .edit_message, .delete_messages => {},
     }
 }
 

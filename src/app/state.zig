@@ -163,6 +163,29 @@ pub const State = struct {
         }
     }
 
+    /// Removes messages from the history of their chat; unknown chats are
+    /// ignored. The order of the remaining messages is kept.
+    pub fn removeMessages(
+        self: *State,
+        chat_id: i64,
+        message_ids: []const i64,
+    ) Allocator.Error!void {
+        for (self.messages.items) |*chat_messages| {
+            if (chat_messages.chat_id != chat_id) continue;
+            var index: usize = 0;
+            while (index < chat_messages.items.items.len) {
+                const entry = &chat_messages.items.items[index];
+                if (!containsId(message_ids, entry.message_id)) {
+                    index += 1;
+                    continue;
+                }
+                const removed = chat_messages.items.orderedRemove(index);
+                self.allocator.free(removed.text);
+            }
+            return;
+        }
+    }
+
     /// Messages of a chat, oldest first; empty for an unknown chat.
     pub fn messagesFor(self: *const State, chat_id: i64) []const MessageEntry {
         for (self.messages.items) |*chat_messages| {
@@ -223,6 +246,21 @@ test "message text is replaced in place" {
     try std.testing.expectEqualStrings("hi there (edited)", state.messagesFor(1)[0].text);
 }
 
+test "messages are removed from the history" {
+    var state = State.init(std.testing.allocator);
+    defer state.deinit();
+
+    try state.upsertChat(1, "Alice");
+    try state.appendMessage(10, 1, false, "one", 1700000000);
+    try state.appendMessage(11, 1, false, "two", 1700000001);
+    try state.appendMessage(12, 1, false, "three", 1700000002);
+    try state.removeMessages(1, &.{ 11, 12 });
+
+    const messages = state.messagesFor(1);
+    try std.testing.expectEqual(@as(usize, 1), messages.len);
+    try std.testing.expectEqualStrings("one", messages[0].text);
+}
+
 test "selection reports changes" {
     var state = State.init(std.testing.allocator);
     defer state.deinit();
@@ -230,4 +268,11 @@ test "selection reports changes" {
     try std.testing.expect(state.selectChat(5));
     try std.testing.expect(!state.selectChat(5));
     try std.testing.expectEqual(@as(?i64, 5), state.selectedChatId());
+}
+
+fn containsId(ids: []const i64, id: i64) bool {
+    for (ids) |candidate| {
+        if (candidate == id) return true;
+    }
+    return false;
 }

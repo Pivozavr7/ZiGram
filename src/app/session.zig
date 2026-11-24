@@ -201,6 +201,15 @@ pub const Session = struct {
         try (try self.commandSender()).editMessage(chat_id, message_id, text);
     }
 
+    pub fn deleteMessages(
+        self: *Session,
+        chat_id: i64,
+        message_ids: []const i64,
+        revoke: bool,
+    ) !void {
+        try (try self.commandSender()).deleteMessages(chat_id, message_ids, revoke);
+    }
+
     /// Reports a failed command to the user.
     pub fn reportError(self: *Session, context: []const u8, err: anyerror) void {
         self.setStatus(std.fmt.allocPrint(

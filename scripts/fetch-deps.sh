@@ -35,6 +35,18 @@ write_failure_summary() {
     local name="$1" version="$2" url="$3" expected="$4"
     local status="$5" size="$6" sha="$7" curl_log="$8"
 
+    if [[ -z "${GITHUB_ACTIONS:-}" ]]; then
+        return
+    fi
+
+    # The workflow command turns into an annotation on the check run,
+    # which is readable without a GitHub login, unlike the raw logs.
+    local note="curl exit ${status}, ${size} bytes, expected sha ${expected}, got ${sha}%0A${url}"
+    if [[ -s "${curl_log}" ]]; then
+        note="${note}%0A$(head -5 "${curl_log}" | tr '\n' ' ')"
+    fi
+    printf '::error title=fetch-deps %s@%s failed::%s\n' "${name}" "${version}" "${note}"
+
     if [[ -z "${GITHUB_STEP_SUMMARY:-}" ]]; then
         return
     fi

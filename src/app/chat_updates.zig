@@ -6,6 +6,7 @@ const zigram = @import("zigram");
 
 const auth = zigram.auth;
 const chats = zigram.chats;
+const messages = zigram.messages;
 const store = zigram.store;
 const updates = zigram.updates;
 
@@ -38,7 +39,7 @@ pub fn applyUpdate(app_state: *state.State, event: updates.Event) !void {
         },
         .chat_last_message => |payload| {
             if (payload.last_message) |message| {
-                try app_state.setPreview(payload.chat_id, messageText(&message));
+                try app_state.setPreview(payload.chat_id, contentText(message.content));
             }
         },
         .new_message => |message| {
@@ -46,9 +47,21 @@ pub fn applyUpdate(app_state: *state.State, event: updates.Event) !void {
                 message.id,
                 message.chat_id,
                 message.is_outgoing,
-                messageText(&message),
+                contentText(message.content),
                 message.date,
             );
+        },
+        .message_content => |payload| {
+            try app_state.editMessageText(
+                payload.chat_id,
+                payload.message_id,
+                contentText(payload.content),
+            );
+        },
+        .messages_deleted => |payload| {
+            if (payload.is_permanent) {
+                try app_state.removeMessages(payload.chat_id, payload.message_ids);
+            }
         },
         .other => {},
     }
@@ -75,25 +88,26 @@ pub fn applyResponse(
             try app_state.upsertChat(chat.id, chat.title);
         },
         .history => {
-            var list = (try chats.parseMessages(sender.allocator, response_json)) orelse return;
+            var list = (try messages.parseMessages(sender.allocator, response_json)) orelse return;
             defer list.deinit();
             for (list.items) |*message| {
                 try app_state.appendMessage(
                     message.id,
                     message.chat_id,
                     message.is_outgoing,
-                    messageText(message),
+                    contentText(message.content),
                     message.date,
                 );
             }
         },
-        .send_message => {},
+        .send_message, .edit_message, .delete_messages => {},
     }
 }
 
-/// The text of a message; non-text contents report their TDLib type name.
-fn messageText(message: *const store.Message) []const u8 {
-    return switch (message.content) {
+/// The text of a message content; non-text contents report their TDLib
+/// type name.
+fn contentText(content: store.Content) []const u8 {
+    return switch (content) {
         .text => |text| text,
         .other => |name| name,
         .unknown => "",

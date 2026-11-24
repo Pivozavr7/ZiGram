@@ -10,6 +10,7 @@ const zigram = @import("zigram");
 
 const auth = zigram.auth;
 const chats = zigram.chats;
+const messages = zigram.messages;
 const td = zigram.td;
 
 const Allocator = std.mem.Allocator;
@@ -31,6 +32,8 @@ pub const Kind = enum {
     get_chat,
     history,
     send_message,
+    edit_message,
+    delete_messages,
 };
 
 /// A request sent to TDLib that has not answered yet.
@@ -120,14 +123,51 @@ pub const Commands = struct {
 
     /// Asks TDLib for the newest messages of a chat.
     pub fn loadHistory(self: *Commands, chat_id: i64) !void {
-        const json = try chats.getChatHistoryRequest(self.allocator, chat_id, 0, 50);
+        const json = try messages.getChatHistoryRequest(self.allocator, chat_id, 0, 50);
         defer self.allocator.free(json);
         try self.sendChat(.history, json, chat_id);
     }
 
     /// Sends a text message to a chat.
     pub fn sendMessage(self: *Commands, chat_id: i64, text: []const u8) !void {
-        const json = try chats.sendMessageRequest(self.allocator, chat_id, text);
+        const json = try messages.sendMessageRequest(self.allocator, chat_id, 0, text);
+        defer self.allocator.free(json);
+        try self.sendChat(.send_message, json, chat_id);
+    }
+
+    /// Replaces the text of a sent outgoing message.
+    pub fn editMessage(
+        self: *Commands,
+        chat_id: i64,
+        message_id: i64,
+        text: []const u8,
+    ) !void {
+        const json = try messages.editMessageTextRequest(self.allocator, chat_id, message_id, text);
+        defer self.allocator.free(json);
+        try self.sendChat(.edit_message, json, chat_id);
+    }
+
+    /// Deletes messages of a chat; `revoke` also removes them for the
+    /// receiving side, when the chat allows it.
+    pub fn deleteMessages(
+        self: *Commands,
+        chat_id: i64,
+        message_ids: []const i64,
+        revoke: bool,
+    ) !void {
+        const json = try messages.deleteMessagesRequest(self.allocator, chat_id, message_ids, revoke);
+        defer self.allocator.free(json);
+        try self.sendChat(.delete_messages, json, chat_id);
+    }
+
+    /// Sends a text message as a reply to another message.
+    pub fn sendMessageReply(
+        self: *Commands,
+        chat_id: i64,
+        reply_to_message_id: i64,
+        text: []const u8,
+    ) !void {
+        const json = try messages.sendMessageRequest(self.allocator, chat_id, reply_to_message_id, text);
         defer self.allocator.free(json);
         try self.sendChat(.send_message, json, chat_id);
     }

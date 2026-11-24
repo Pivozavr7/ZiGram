@@ -46,11 +46,7 @@ pub const Message = struct {
             .other => |name| self.allocator.free(name),
             else => {},
         }
-        switch (self.content) {
-            .text => |text| self.allocator.free(text),
-            .other => |name| self.allocator.free(name),
-            else => {},
-        }
+        deinitContent(self.allocator, &self.content);
         self.* = undefined;
     }
 
@@ -94,7 +90,7 @@ pub fn messageFromPayload(allocator: Allocator, payload: MessagePayload) Allocat
         message.sender = try parseSender(allocator, sender);
     }
     if (payload.content) |content| {
-        message.content = try parseContent(allocator, content);
+        message.content = try contentFromPayload(allocator, content);
     }
     return message;
 }
@@ -109,7 +105,7 @@ const FormattedText = struct {
     text: []const u8 = "",
 };
 
-const ContentPayload = struct {
+pub const ContentPayload = struct {
     @"@type": []const u8,
     text: ?FormattedText = null,
 };
@@ -125,7 +121,9 @@ fn parseSender(allocator: Allocator, payload: SenderPayload) Allocator.Error!Sen
     }
 }
 
-fn parseContent(allocator: Allocator, payload: ContentPayload) Allocator.Error!Content {
+/// Builds a `Content` from an already-parsed payload; the caller owns the
+/// result. Used by `messageFromPayload` and update parsing.
+pub fn contentFromPayload(allocator: Allocator, payload: ContentPayload) Allocator.Error!Content {
     const type_name = payload.@"@type";
     if (std.mem.eql(u8, type_name, "messageText")) {
         const text = if (payload.text) |formatted| formatted.text else "";
@@ -133,6 +131,16 @@ fn parseContent(allocator: Allocator, payload: ContentPayload) Allocator.Error!C
     } else {
         return .{ .other = try allocator.dupe(u8, type_name) };
     }
+}
+
+/// Frees the owned strings of a `Content`; the union itself is not heap.
+pub fn deinitContent(allocator: Allocator, content: *Content) void {
+    switch (content.*) {
+        .text => |text| allocator.free(text),
+        .other => |name| allocator.free(name),
+        .unknown => {},
+    }
+    content.* = .unknown;
 }
 
 test "message parses text from a user" {

@@ -26,7 +26,10 @@ pub const Message = message.Message;
 pub const Sender = message.Sender;
 pub const Content = message.Content;
 pub const MessagePayload = message.MessagePayload;
+pub const ContentPayload = message.ContentPayload;
 pub const messageFromPayload = message.messageFromPayload;
+pub const contentFromPayload = message.contentFromPayload;
+pub const deinitContent = message.deinitContent;
 
 pub const File = file.File;
 

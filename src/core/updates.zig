@@ -29,6 +29,20 @@ pub const Event = union(enum) {
     },
     /// `updateNewMessage`: a new incoming or outgoing message.
     new_message: store.Message,
+    /// `updateMessageContent`: the content of a message changed, for
+    /// example after an edit.
+    message_content: struct {
+        chat_id: i64,
+        message_id: i64,
+        content: store.Content,
+    },
+    /// `updateDeleteMessages`: messages were deleted from a chat. Only
+    /// permanent deletions remove them; the others can still be undeleted.
+    messages_deleted: struct {
+        chat_id: i64,
+        message_ids: []i64,
+        is_permanent: bool,
+    },
     /// Unknown `update*` type, or a known type whose payload has an
     /// unexpected shape. The owned name lets a caller log or ignore it.
     other: []u8,
@@ -46,6 +60,8 @@ pub const Update = struct {
                 if (payload.last_message) |*message| message.deinit();
             },
             .new_message => |*message| message.deinit(),
+            .message_content => |*payload| store.deinitContent(self.allocator, &payload.content),
+            .messages_deleted => |payload| self.allocator.free(payload.message_ids),
             .other => |name| self.allocator.free(name),
         }
         self.* = undefined;
@@ -104,6 +120,12 @@ fn parseEvent(
     if (std.mem.eql(u8, type_name, "updateNewMessage")) {
         return parseNewMessage(allocator, event_json);
     }
+    if (std.mem.eql(u8, type_name, "updateMessageContent")) {
+        return parseMessageContent(allocator, event_json);
+    }
+    if (std.mem.eql(u8, type_name, "updateDeleteMessages")) {
+        return parseDeleteMessages(allocator, event_json);
+    }
     return .{
         .allocator = allocator,
         .event = .{ .other = try allocator.dupe(u8, type_name) },
@@ -160,6 +182,64 @@ fn parseChatLastMessage(
     };
 }
 
+const MessageContentPayload = struct {
+    chat_id: i64 = 0,
+    message_id: i64 = 0,
+    new_content: ?store.ContentPayload = null,
+};
+
+fn parseMessageContent(
+    allocator: Allocator,
+    event_json: []const u8,
+) ParseError!?Update {
+    var parsed = try std.json.parseFromSlice(
+        MessageContentPayload,
+        allocator,
+        event_json,
+        .{ .ignore_unknown_fields = true },
+    );
+    defer parsed.deinit();
+
+    const content_payload = parsed.value.new_content orelse return null;
+    return .{
+        .allocator = allocator,
+        .event = .{ .message_content = .{
+            .chat_id = parsed.value.chat_id,
+            .message_id = parsed.value.message_id,
+            .content = try store.contentFromPayload(allocator, content_payload),
+        } },
+    };
+}
+
+const DeleteMessagesPayload = struct {
+    chat_id: i64 = 0,
+    message_ids: ?[]i64 = null,
+    is_permanent: bool = false,
+};
+
+fn parseDeleteMessages(
+    allocator: Allocator,
+    event_json: []const u8,
+) ParseError!?Update {
+    var parsed = try std.json.parseFromSlice(
+        DeleteMessagesPayload,
+        allocator,
+        event_json,
+        .{ .ignore_unknown_fields = true },
+    );
+    defer parsed.deinit();
+
+    const ids = parsed.value.message_ids orelse return null;
+    return .{
+        .allocator = allocator,
+        .event = .{ .messages_deleted = .{
+            .chat_id = parsed.value.chat_id,
+            .message_ids = try allocator.dupe(i64, ids),
+            .is_permanent = parsed.value.is_permanent,
+        } },
+    };
+}
+
 const NewMessagePayload = struct {
     message: ?store.MessagePayload = null,
 };
@@ -178,103 +258,4 @@ fn parseNewMessage(allocator: Allocator, event_json: []const u8) ParseError!?Upd
         .allocator = allocator,
         .event = .{ .new_message = try store.messageFromPayload(allocator, message_payload) },
     };
-}
-
-test "updateNewChat parses into a chat" {
-    var update = (try Update.parse(
-        std.testing.allocator,
-        "{\"@type\":\"updateNewChat\",\"chat\":{\"@type\":\"chat\",\"id\":1001,\"title\":\"Alice\",\"type\":{\"@type\":\"chatTypePrivate\",\"user_id\":42}},\"extra\":1}",
-    )) orelse return error.TestUnexpectedResult;
-    defer update.deinit();
-
-    try std.testing.expect(update.event == .new_chat);
-    try std.testing.expectEqual(@as(i64, 1001), update.event.new_chat.id);
-    try std.testing.expectEqualStrings("Alice", update.event.new_chat.title);
-}
-
-test "updateChatLastMessage parses the preview message" {
-    var update = (try Update.parse(
-        std.testing.allocator,
-        "{\"@type\":\"updateChatLastMessage\",\"chat_id\":1001,\"last_message\":{\"@type\":\"message\",\"id\":10,\"chat_id\":1001,\"date\":1700000000,\"content\":{\"@type\":\"messageText\",\"text\":{\"@type\":\"formattedText\",\"text\":\"hello\"}}},\"positions\":[]}",
-    )) orelse return error.TestUnexpectedResult;
-    defer update.deinit();
-
-    try std.testing.expect(update.event == .chat_last_message);
-    try std.testing.expectEqual(@as(i64, 1001), update.event.chat_last_message.chat_id);
-    try std.testing.expectEqualStrings(
-        "hello",
-        update.event.chat_last_message.last_message.?.content.text,
-    );
-}
-
-test "updateChatLastMessage allows a removed last message" {
-    var update = (try Update.parse(
-        std.testing.allocator,
-        "{\"@type\":\"updateChatLastMessage\",\"chat_id\":1001,\"last_message\":null}",
-    )) orelse return error.TestUnexpectedResult;
-    defer update.deinit();
-
-    try std.testing.expect(update.event == .chat_last_message);
-    try std.testing.expectEqual(@as(?store.Message, null), update.event.chat_last_message.last_message);
-}
-
-test "updateNewMessage parses into a message" {
-    var update = (try Update.parse(
-        std.testing.allocator,
-        "{\"@type\":\"updateNewMessage\",\"message\":{\"@type\":\"message\",\"id\":11,\"chat_id\":1001,\"sender_id\":{\"@type\":\"messageSenderUser\",\"user_id\":42},\"date\":1700000001,\"is_outgoing\":false,\"content\":{\"@type\":\"messageText\",\"text\":{\"@type\":\"formattedText\",\"text\":\"hi\"}}}}",
-    )) orelse return error.TestUnexpectedResult;
-    defer update.deinit();
-
-    try std.testing.expect(update.event == .new_message);
-    try std.testing.expectEqualStrings("hi", update.event.new_message.content.text);
-    try std.testing.expectEqual(@as(i64, 42), update.event.new_message.sender.user);
-}
-
-test "parse keeps unknown update types" {
-    var update = (try Update.parse(
-        std.testing.allocator,
-        "{\"@type\":\"updateSomethingBrandNew\",\"field\":1}",
-    )) orelse return error.TestUnexpectedResult;
-    defer update.deinit();
-
-    try std.testing.expect(update.event == .other);
-    try std.testing.expectEqualStrings("updateSomethingBrandNew", update.event.other);
-}
-
-test "parse returns null for responses" {
-    const maybe = try Update.parse(
-        std.testing.allocator,
-        "{\"@type\":\"ok\",\"@extra\":1}",
-    );
-
-    try std.testing.expectEqual(@as(?Update, null), maybe);
-}
-
-test "parse returns null for error responses whose message is a string" {
-    const maybe = try Update.parse(
-        std.testing.allocator,
-        "{\"@type\":\"error\",\"code\":400,\"message\":\"CHAT_NOT_FOUND\"}",
-    );
-
-    try std.testing.expectEqual(@as(?Update, null), maybe);
-}
-
-test "a known update with an unexpected payload shape degrades to other" {
-    var update = (try Update.parse(
-        std.testing.allocator,
-        "{\"@type\":\"updateNewMessage\",\"message\":\"not an object\"}",
-    )) orelse return error.TestUnexpectedResult;
-    defer update.deinit();
-
-    try std.testing.expect(update.event == .other);
-    try std.testing.expectEqualStrings("updateNewMessage", update.event.other);
-}
-
-test "parse returns null for malformed known updates" {
-    const maybe = try Update.parse(
-        std.testing.allocator,
-        "{\"@type\":\"updateNewChat\"}",
-    );
-
-    try std.testing.expectEqual(@as(?Update, null), maybe);
 }

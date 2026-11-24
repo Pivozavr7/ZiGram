@@ -23,6 +23,7 @@ test {
     _ = @import("auth/root.zig");
     _ = @import("store/root.zig");
     _ = @import("updates.zig");
+    _ = @import("updates_test.zig");
     _ = @import("chats.zig");
     _ = @import("messages.zig");
 }

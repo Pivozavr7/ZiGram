@@ -11,6 +11,11 @@ repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 dest_dir="${repo_root}/vendor"
 
 die() {
+    # In CI the message is surfaced as a check run annotation, because
+    # reading the raw step logs needs a GitHub login.
+    if [[ -n "${GITHUB_ACTIONS:-}" ]]; then
+        printf '::error::%s\n' "$*"
+    fi
     printf 'error: %s\n' "$*" >&2
     exit 1
 }
@@ -45,7 +50,7 @@ write_failure_summary() {
     if [[ -s "${curl_log}" ]]; then
         note="${note}%0A$(head -5 "${curl_log}" | tr '\n' ' ')"
     fi
-    printf '::error title=fetch-deps %s@%s failed::%s\n' "${name}" "${version}" "${note}"
+    printf '::error::fetch-deps %s@%s failed: %s\n' "${name}" "${version}" "${note}"
 
     if [[ -z "${GITHUB_STEP_SUMMARY:-}" ]]; then
         return

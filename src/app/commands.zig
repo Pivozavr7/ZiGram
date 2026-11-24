@@ -32,6 +32,7 @@ pub const Kind = enum {
     get_chat,
     history,
     send_message,
+    edit_message,
 };
 
 /// A request sent to TDLib that has not answered yet.
@@ -131,6 +132,18 @@ pub const Commands = struct {
         const json = try messages.sendMessageRequest(self.allocator, chat_id, 0, text);
         defer self.allocator.free(json);
         try self.sendChat(.send_message, json, chat_id);
+    }
+
+    /// Replaces the text of a sent outgoing message.
+    pub fn editMessage(
+        self: *Commands,
+        chat_id: i64,
+        message_id: i64,
+        text: []const u8,
+    ) !void {
+        const json = try messages.editMessageTextRequest(self.allocator, chat_id, message_id, text);
+        defer self.allocator.free(json);
+        try self.sendChat(.edit_message, json, chat_id);
     }
 
     /// Sends a text message as a reply to another message.

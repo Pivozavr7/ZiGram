@@ -197,6 +197,10 @@ pub const Session = struct {
         try (try self.commandSender()).sendMessageReply(chat_id, reply_to_message_id, text);
     }
 
+    pub fn editMessage(self: *Session, chat_id: i64, message_id: i64, text: []const u8) !void {
+        try (try self.commandSender()).editMessage(chat_id, message_id, text);
+    }
+
     /// Reports a failed command to the user.
     pub fn reportError(self: *Session, context: []const u8, err: anyerror) void {
         self.setStatus(std.fmt.allocPrint(

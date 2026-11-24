@@ -33,7 +33,7 @@ fetch_one() {
     local name="$1" url="$2" dest_dir="$3"
     local lock_file="${repo_root}/${name}.lock"
 
-    local version expected_sha256 tarball actual_sha256
+    local version expected_sha256 tarball actual_sha256 attempt
     version="$(read_lock_value version "${lock_file}")"
     expected_sha256="$(read_lock_value sha256 "${lock_file}")"
     tarball="${dest_dir}/downloads/${name}-${version}.tar.gz"
@@ -43,19 +43,30 @@ fetch_one() {
         return
     fi
 
-    mkdir -p "$(dirname -- "${tarball}")"
-    if [[ ! -f "${tarball}" ]]; then
-        printf 'Fetching %s@%s\n' "${name}" "${version}"
-        curl -fL --max-time 300 -o "${tarball}" "${url}"
-    fi
+    # The release CDN resets connections and truncates downloads from
+    # time to time, so both curl and the hash check retry; a mismatched
+    # tarball is thrown away and fetched again.
+    for attempt in 1 2 3; do
+        mkdir -p "$(dirname -- "${tarball}")"
+        rm -f "${tarball}"
+        printf 'Fetching %s@%s (attempt %d)\n' "${name}" "${version}" "${attempt}"
+        if ! curl -fL --retry 3 --retry-all-errors --retry-delay 2 \
+            --max-time 300 -o "${tarball}" "${url}"; then
+            printf 'curl failed for %s (attempt %d)\n' "${name}" "${attempt}" >&2
+            continue
+        fi
 
-    actual_sha256="$(sha256sum "${tarball}" | cut -d' ' -f1)"
-    if [[ "${actual_sha256}" != "${expected_sha256}" ]]; then
-        die "sha256 mismatch for ${name}: expected ${expected_sha256}, got ${actual_sha256}"
-    fi
+        actual_sha256="$(sha256sum "${tarball}" | cut -d' ' -f1)"
+        if [[ "${actual_sha256}" == "${expected_sha256}" ]]; then
+            tar -xzf "${tarball}" -C "${dest_dir}"
+            printf 'Extracted %s@%s (sha256 %s)\n' "${name}" "${version}" "${actual_sha256}"
+            return
+        fi
+        printf 'sha256 mismatch for %s (attempt %d): expected %s, got %s\n' \
+            "${name}" "${attempt}" "${expected_sha256}" "${actual_sha256}" >&2
+    done
 
-    tar -xzf "${tarball}" -C "${dest_dir}"
-    printf 'Extracted %s@%s (sha256 %s)\n' "${name}" "${version}" "${actual_sha256}"
+    die "could not fetch a valid ${name}@${version} tarball from ${url}"
 }
 
 for tool in curl tar sha256sum; do

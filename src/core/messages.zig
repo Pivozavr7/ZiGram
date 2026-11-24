@@ -61,6 +61,31 @@ pub fn sendMessageRequest(
     return aw.toOwnedSlice();
 }
 
+/// Builds `editMessageText` JSON: replaces the text of a sent message.
+/// The text is escaped, so any text can be sent.
+pub fn editMessageTextRequest(
+    allocator: Allocator,
+    chat_id: i64,
+    message_id: i64,
+    text: []const u8,
+) RequestError![]u8 {
+    assert(text.len > 0);
+
+    var aw: std.Io.Writer.Allocating = try .initCapacity(allocator, 160 + text.len);
+    errdefer aw.deinit();
+    const writer = &aw.writer;
+
+    try writer.writeAll("{\"@type\":\"editMessageText\",\"chat_id\":");
+    try writer.print("{d}", .{chat_id});
+    try writer.writeAll(",\"message_id\":");
+    try writer.print("{d}", .{message_id});
+    try writer.writeAll(",\"input_message_content\":{\"@type\":\"inputMessageText\",\"text\":{\"@type\":\"formattedText\",\"text\":");
+    try request.writeJsonString(writer, text);
+    try writer.writeAll("}}}");
+
+    return aw.toOwnedSlice();
+}
+
 /// A list of messages from a `messages` response.
 pub const MessageList = struct {
     allocator: Allocator,
@@ -132,6 +157,16 @@ test "send message request encodes the reply" {
 
     try std.testing.expectEqualStrings(
         "{\"@type\":\"sendMessage\",\"chat_id\":1001,\"reply_to_message_id\":10,\"input_message_content\":{\"@type\":\"inputMessageText\",\"text\":{\"@type\":\"formattedText\",\"text\":\"hi\"}}}",
+        json,
+    );
+}
+
+test "edit message request escapes the text" {
+    const json = try editMessageTextRequest(std.testing.allocator, 1001, 10, "new \"text\"");
+    defer std.testing.allocator.free(json);
+
+    try std.testing.expectEqualStrings(
+        "{\"@type\":\"editMessageText\",\"chat_id\":1001,\"message_id\":10,\"input_message_content\":{\"@type\":\"inputMessageText\",\"text\":{\"@type\":\"formattedText\",\"text\":\"new \\\"text\\\"\"}}}",
         json,
     );
 }

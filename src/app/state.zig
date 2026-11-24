@@ -142,6 +142,27 @@ pub const State = struct {
         try self.messages.append(self.allocator, chat_messages);
     }
 
+    /// Replaces the text of a message in the history of its chat; unknown
+    /// chats and messages are ignored.
+    pub fn editMessageText(
+        self: *State,
+        chat_id: i64,
+        message_id: i64,
+        text: []const u8,
+    ) Allocator.Error!void {
+        for (self.messages.items) |*chat_messages| {
+            if (chat_messages.chat_id != chat_id) continue;
+            for (chat_messages.items.items) |*entry| {
+                if (entry.message_id != message_id) continue;
+                const text_copy = try self.allocator.dupe(u8, text);
+                self.allocator.free(entry.text);
+                entry.text = text_copy;
+                return;
+            }
+            return;
+        }
+    }
+
     /// Messages of a chat, oldest first; empty for an unknown chat.
     pub fn messagesFor(self: *const State, chat_id: i64) []const MessageEntry {
         for (self.messages.items) |*chat_messages| {
@@ -189,6 +210,17 @@ test "preview and messages are stored per chat" {
     try std.testing.expectEqual(@as(usize, 1), state.messagesFor(1).len);
     try std.testing.expectEqualStrings("hi there", state.messagesFor(1)[0].text);
     try std.testing.expectEqual(@as(usize, 1), state.messagesFor(2).len);
+}
+
+test "message text is replaced in place" {
+    var state = State.init(std.testing.allocator);
+    defer state.deinit();
+
+    try state.upsertChat(1, "Alice");
+    try state.appendMessage(10, 1, false, "hi there", 1700000000);
+    try state.editMessageText(1, 10, "hi there (edited)");
+
+    try std.testing.expectEqualStrings("hi there (edited)", state.messagesFor(1)[0].text);
 }
 
 test "selection reports changes" {

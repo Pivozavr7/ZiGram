@@ -39,7 +39,7 @@ pub fn applyUpdate(app_state: *state.State, event: updates.Event) !void {
         },
         .chat_last_message => |payload| {
             if (payload.last_message) |message| {
-                try app_state.setPreview(payload.chat_id, messageText(&message));
+                try app_state.setPreview(payload.chat_id, contentText(message.content));
             }
         },
         .new_message => |message| {
@@ -47,8 +47,15 @@ pub fn applyUpdate(app_state: *state.State, event: updates.Event) !void {
                 message.id,
                 message.chat_id,
                 message.is_outgoing,
-                messageText(&message),
+                contentText(message.content),
                 message.date,
+            );
+        },
+        .message_content => |payload| {
+            try app_state.editMessageText(
+                payload.chat_id,
+                payload.message_id,
+                contentText(payload.content),
             );
         },
         .other => {},
@@ -83,18 +90,19 @@ pub fn applyResponse(
                     message.id,
                     message.chat_id,
                     message.is_outgoing,
-                    messageText(message),
+                    contentText(message.content),
                     message.date,
                 );
             }
         },
-        .send_message => {},
+        .send_message, .edit_message => {},
     }
 }
 
-/// The text of a message; non-text contents report their TDLib type name.
-fn messageText(message: *const store.Message) []const u8 {
-    return switch (message.content) {
+/// The text of a message content; non-text contents report their TDLib
+/// type name.
+fn contentText(content: store.Content) []const u8 {
+    return switch (content) {
         .text => |text| text,
         .other => |name| name,
         .unknown => "",

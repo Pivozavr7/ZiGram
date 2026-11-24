@@ -104,3 +104,16 @@ test "parse returns null for malformed known updates" {
 
     try std.testing.expectEqual(@as(?updates.Update, null), maybe);
 }
+
+test "updateMessageContent parses the new content" {
+    var update = (try updates.Update.parse(
+        std.testing.allocator,
+        "{\"@type\":\"updateMessageContent\",\"chat_id\":1001,\"message_id\":10,\"new_content\":{\"@type\":\"messageText\",\"text\":{\"@type\":\"formattedText\",\"text\":\"edited\"}}}",
+    )) orelse return error.TestUnexpectedResult;
+    defer update.deinit();
+
+    try std.testing.expect(update.event == .message_content);
+    try std.testing.expectEqual(@as(i64, 1001), update.event.message_content.chat_id);
+    try std.testing.expectEqual(@as(i64, 10), update.event.message_content.message_id);
+    try std.testing.expectEqualStrings("edited", update.event.message_content.content.text);
+}

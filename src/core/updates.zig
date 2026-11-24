@@ -29,6 +29,13 @@ pub const Event = union(enum) {
     },
     /// `updateNewMessage`: a new incoming or outgoing message.
     new_message: store.Message,
+    /// `updateMessageContent`: the content of a message changed, for
+    /// example after an edit.
+    message_content: struct {
+        chat_id: i64,
+        message_id: i64,
+        content: store.Content,
+    },
     /// Unknown `update*` type, or a known type whose payload has an
     /// unexpected shape. The owned name lets a caller log or ignore it.
     other: []u8,
@@ -46,6 +53,7 @@ pub const Update = struct {
                 if (payload.last_message) |*message| message.deinit();
             },
             .new_message => |*message| message.deinit(),
+            .message_content => |*payload| store.deinitContent(self.allocator, &payload.content),
             .other => |name| self.allocator.free(name),
         }
         self.* = undefined;
@@ -104,6 +112,9 @@ fn parseEvent(
     if (std.mem.eql(u8, type_name, "updateNewMessage")) {
         return parseNewMessage(allocator, event_json);
     }
+    if (std.mem.eql(u8, type_name, "updateMessageContent")) {
+        return parseMessageContent(allocator, event_json);
+    }
     return .{
         .allocator = allocator,
         .event = .{ .other = try allocator.dupe(u8, type_name) },
@@ -156,6 +167,35 @@ fn parseChatLastMessage(
         .event = .{ .chat_last_message = .{
             .chat_id = parsed.value.chat_id,
             .last_message = last_message,
+        } },
+    };
+}
+
+const MessageContentPayload = struct {
+    chat_id: i64 = 0,
+    message_id: i64 = 0,
+    new_content: ?store.ContentPayload = null,
+};
+
+fn parseMessageContent(
+    allocator: Allocator,
+    event_json: []const u8,
+) ParseError!?Update {
+    var parsed = try std.json.parseFromSlice(
+        MessageContentPayload,
+        allocator,
+        event_json,
+        .{ .ignore_unknown_fields = true },
+    );
+    defer parsed.deinit();
+
+    const content_payload = parsed.value.new_content orelse return null;
+    return .{
+        .allocator = allocator,
+        .event = .{ .message_content = .{
+            .chat_id = parsed.value.chat_id,
+            .message_id = parsed.value.message_id,
+            .content = try store.contentFromPayload(allocator, content_payload),
         } },
     };
 }

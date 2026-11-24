@@ -10,6 +10,7 @@ const zigram = @import("zigram");
 
 const auth = zigram.auth;
 const chats = zigram.chats;
+const messages = zigram.messages;
 const td = zigram.td;
 
 const Allocator = std.mem.Allocator;
@@ -120,14 +121,14 @@ pub const Commands = struct {
 
     /// Asks TDLib for the newest messages of a chat.
     pub fn loadHistory(self: *Commands, chat_id: i64) !void {
-        const json = try chats.getChatHistoryRequest(self.allocator, chat_id, 0, 50);
+        const json = try messages.getChatHistoryRequest(self.allocator, chat_id, 0, 50);
         defer self.allocator.free(json);
         try self.sendChat(.history, json, chat_id);
     }
 
     /// Sends a text message to a chat.
     pub fn sendMessage(self: *Commands, chat_id: i64, text: []const u8) !void {
-        const json = try chats.sendMessageRequest(self.allocator, chat_id, text);
+        const json = try messages.sendMessageRequest(self.allocator, chat_id, text);
         defer self.allocator.free(json);
         try self.sendChat(.send_message, json, chat_id);
     }

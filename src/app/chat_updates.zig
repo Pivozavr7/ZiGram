@@ -6,6 +6,7 @@ const zigram = @import("zigram");
 
 const auth = zigram.auth;
 const chats = zigram.chats;
+const messages = zigram.messages;
 const store = zigram.store;
 const updates = zigram.updates;
 
@@ -75,7 +76,7 @@ pub fn applyResponse(
             try app_state.upsertChat(chat.id, chat.title);
         },
         .history => {
-            var list = (try chats.parseMessages(sender.allocator, response_json)) orelse return;
+            var list = (try messages.parseMessages(sender.allocator, response_json)) orelse return;
             defer list.deinit();
             for (list.items) |*message| {
                 try app_state.appendMessage(

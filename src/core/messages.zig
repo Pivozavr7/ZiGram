@@ -35,19 +35,25 @@ pub fn getChatHistoryRequest(
 }
 
 /// Builds `sendMessage` JSON. The text is escaped, so any text can be sent.
+/// A `reply_to_message_id` of 0 sends a message without a reply.
 pub fn sendMessageRequest(
     allocator: Allocator,
     chat_id: i64,
+    reply_to_message_id: i64,
     text: []const u8,
 ) RequestError![]u8 {
     assert(text.len > 0);
 
-    var aw: std.Io.Writer.Allocating = try .initCapacity(allocator, 128 + text.len);
+    var aw: std.Io.Writer.Allocating = try .initCapacity(allocator, 160 + text.len);
     errdefer aw.deinit();
     const writer = &aw.writer;
 
     try writer.writeAll("{\"@type\":\"sendMessage\",\"chat_id\":");
     try writer.print("{d}", .{chat_id});
+    if (reply_to_message_id != 0) {
+        try writer.writeAll(",\"reply_to_message_id\":");
+        try writer.print("{d}", .{reply_to_message_id});
+    }
     try writer.writeAll(",\"input_message_content\":{\"@type\":\"inputMessageText\",\"text\":{\"@type\":\"formattedText\",\"text\":");
     try request.writeJsonString(writer, text);
     try writer.writeAll("}}}");
@@ -111,11 +117,21 @@ test "history request is encoded" {
 }
 
 test "send message request escapes the text" {
-    const json = try sendMessageRequest(std.testing.allocator, 1001, "hi \"there\"\n");
+    const json = try sendMessageRequest(std.testing.allocator, 1001, 0, "hi \"there\"\n");
     defer std.testing.allocator.free(json);
 
     try std.testing.expectEqualStrings(
         "{\"@type\":\"sendMessage\",\"chat_id\":1001,\"input_message_content\":{\"@type\":\"inputMessageText\",\"text\":{\"@type\":\"formattedText\",\"text\":\"hi \\\"there\\\"\\n\"}}}",
+        json,
+    );
+}
+
+test "send message request encodes the reply" {
+    const json = try sendMessageRequest(std.testing.allocator, 1001, 10, "hi");
+    defer std.testing.allocator.free(json);
+
+    try std.testing.expectEqualStrings(
+        "{\"@type\":\"sendMessage\",\"chat_id\":1001,\"reply_to_message_id\":10,\"input_message_content\":{\"@type\":\"inputMessageText\",\"text\":{\"@type\":\"formattedText\",\"text\":\"hi\"}}}",
         json,
     );
 }

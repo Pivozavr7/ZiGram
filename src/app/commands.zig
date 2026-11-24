@@ -128,7 +128,19 @@ pub const Commands = struct {
 
     /// Sends a text message to a chat.
     pub fn sendMessage(self: *Commands, chat_id: i64, text: []const u8) !void {
-        const json = try messages.sendMessageRequest(self.allocator, chat_id, text);
+        const json = try messages.sendMessageRequest(self.allocator, chat_id, 0, text);
+        defer self.allocator.free(json);
+        try self.sendChat(.send_message, json, chat_id);
+    }
+
+    /// Sends a text message as a reply to another message.
+    pub fn sendMessageReply(
+        self: *Commands,
+        chat_id: i64,
+        reply_to_message_id: i64,
+        text: []const u8,
+    ) !void {
+        const json = try messages.sendMessageRequest(self.allocator, chat_id, reply_to_message_id, text);
         defer self.allocator.free(json);
         try self.sendChat(.send_message, json, chat_id);
     }

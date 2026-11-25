@@ -121,11 +121,12 @@ dependencies only point down. a few decisions worth knowing about:
 - a **vulkan** capable gpu and driver (for the gui)
 - **tdlib 1.8.x** `libtdjson.so`. you don't have to compile it, see the next section
 - your own telegram **`api_id` / `api_hash`** from [my.telegram.org](https://my.telegram.org)
+- **noto fonts** (sans, cjk, color emoji): the gui renders text with system fonts and falls back to imgui's default when they are missing
 
 on arch:
 
 ```sh
-sudo pacman -S zig sdl3 freetype2 fontconfig dbus
+sudo pacman -S zig sdl3 freetype2 fontconfig dbus noto-fonts noto-fonts-cjk
 ```
 
 <br>
@@ -241,7 +242,7 @@ split the prototype into small single-purpose modules before the ui grows.
 - [x] login screen wired to the authorization state machine
 - [x] basic chat list, conversation view and message input
 - [x] theme tokens and `.zon` loader
-- [ ] text check: cyrillic, cjk, color emoji, ime
+- [x] text check: cyrillic, cjk, color emoji, ime (`zig build run-gui -- --text-test`)
 - [ ] virtual scrolling for long histories
 - [ ] three themes, configurable keybinds
 - [ ] d-bus notifications, search

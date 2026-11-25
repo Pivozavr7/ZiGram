@@ -49,11 +49,18 @@ pub const ChatList = struct {
             widgets.disabled("no chats yet");
         }
         for (session.state.chats.items) |*entry| {
-            const label = scratch.printSentinel(
-                "{s}  {s}",
-                .{ entry.title, entry.preview },
-                0,
-            ) catch continue;
+            const label = if (entry.unread_count > 0)
+                scratch.printSentinel(
+                    "{s}  {s}  ({d})",
+                    .{ entry.title, entry.preview, entry.unread_count },
+                    0,
+                ) catch continue
+            else
+                scratch.printSentinel(
+                    "{s}  {s}",
+                    .{ entry.title, entry.preview },
+                    0,
+                ) catch continue;
             if (!gfx.selectable(label, session.state.selectedChatId() == entry.chat_id)) continue;
             if (session.state.selectChat(entry.chat_id)) {
                 session.loadHistory(entry.chat_id) catch |err| {

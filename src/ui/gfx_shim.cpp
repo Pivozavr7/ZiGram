@@ -94,7 +94,7 @@ bool zig_gfx_get_error(char* buf, unsigned size)
     return true;
 }
 
-bool zig_gfx_init(const char* title, int width, int height, const zig_gfx_theme* theme)
+bool zig_gfx_init(const char* title, int width, int height, const zig_gfx_theme* theme, const zig_gfx_fonts* fonts)
 {
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD))
         return false;
@@ -134,6 +134,7 @@ bool zig_gfx_init(const char* title, int width, int height, const zig_gfx_theme*
     style.FontScaleDpi = scale;
     if (theme != nullptr)
         applyTheme(*theme);
+    zig_gfx_load_fonts(fonts, SDL_GetWindowPixelDensity(g_window));
 
     ImGui_ImplSDL3_InitForSDLGPU(g_window);
 

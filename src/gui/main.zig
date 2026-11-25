@@ -30,7 +30,7 @@ pub fn main(init: std.process.Init) !void {
     defer session.deinit();
 
     const window_title = try arena.printSentinel("ZiGram {s}", .{zigram.version}, 0);
-    if (!gfx.init(window_title.ptr, window_width, window_height)) {
+    if (!gfx.init(init.io, window_title.ptr, window_width, window_height)) {
         try reportStartupError(init.io);
         std.process.exit(1);
     }

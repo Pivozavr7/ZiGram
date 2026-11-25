@@ -43,6 +43,19 @@ typedef struct {
     float composer_height;
 } zig_gfx_theme;
 
+// Font files the Zig side located for the atlas; NULL entries skip a
+// source. The layout matches `fonts.Fonts` in src/ui/fonts.zig; change
+// both together.
+typedef struct {
+    const char* base;
+    const char* cjk;
+    const char* emoji;
+} zig_gfx_fonts;
+
+// Shim-internal: loads the base font and merges the emoji and CJK faces.
+// zig_gfx_init calls it after the theme is applied; Zig never calls it.
+void zig_gfx_load_fonts(const zig_gfx_fonts* fonts, float pixel_density);
+
 // The theme applied last; valid once zig_gfx_init has returned.
 const zig_gfx_theme* zig_gfx_get_theme(void);
 

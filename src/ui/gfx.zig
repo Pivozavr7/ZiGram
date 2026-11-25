@@ -6,6 +6,7 @@
 const std = @import("std");
 
 const theme = @import("theme/root.zig");
+const fonts = @import("fonts.zig");
 
 /// What the window system reported since the last poll.
 pub const Event = enum(c_int) {
@@ -20,6 +21,7 @@ extern fn zig_gfx_init(
     width: c_int,
     height: c_int,
     tokens: *const theme.Tokens,
+    font_files: *const fonts.Fonts,
 ) bool;
 extern fn zig_gfx_quit() void;
 extern fn zig_gfx_get_error(buf: [*]u8, size: c_uint) bool;
@@ -51,10 +53,11 @@ extern fn zig_gfx_input_text_multiline(
 extern fn zig_gfx_same_line() void;
 extern fn zig_gfx_draw_qr(modules: [*]const bool, count: c_int, scale: c_int) bool;
 
-/// Opens the window with the current theme; returns false when the GPU
-/// device is unavailable.
-pub fn init(title: [*:0]const u8, width: c_int, height: c_int) bool {
-    return zig_gfx_init(title, width, height, theme.current());
+/// Opens the window with the current theme and the system fonts; returns
+/// false when the GPU device is unavailable.
+pub fn init(io: std.Io, title: [*:0]const u8, width: c_int, height: c_int) bool {
+    const found = fonts.find(io);
+    return zig_gfx_init(title, width, height, theme.current(), &found);
 }
 
 pub fn quit() void {

@@ -74,6 +74,8 @@ pub fn build(b: *std.Build) void {
         },
     });
     imgui_mod.addCMacro("IMGUI_ENABLE_FREETYPE", "1");
+    // Emoji codepoints (U+1F600 and up) do not fit the default 16-bit ImWchar.
+    imgui_mod.addCMacro("IMGUI_USE_WCHAR32", "1");
     // Headers and flags come from pkg-config (see README requirements).
     imgui_mod.linkSystemLibrary("freetype2", .{});
     // C ABI bridge between the Zig GUI and SDL3 + ImGui.
@@ -83,6 +85,7 @@ pub fn build(b: *std.Build) void {
             "gfx_shim.cpp",
             "gfx_widgets.cpp",
             "gfx_qr.cpp",
+            "gfx_fonts.cpp",
         },
     });
 
@@ -157,12 +160,23 @@ pub fn build(b: *std.Build) void {
     });
     const run_theme_tests = b.addRunArtifact(theme_tests);
 
+    // The font lookup is pure Zig: candidate paths and existence checks.
+    const fonts_tests = b.addTest(.{
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/ui/fonts.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    const run_fonts_tests = b.addRunArtifact(fonts_tests);
+
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_core_tests.step);
     test_step.dependOn(&run_cli_tests.step);
     test_step.dependOn(&run_app_tests.step);
     test_step.dependOn(&run_qr_tests.step);
     test_step.dependOn(&run_theme_tests.step);
+    test_step.dependOn(&run_fonts_tests.step);
 
     const fmt_step = b.addFmt(.{
         .paths = b.pathList(&.{ "src", "build.zig" }),

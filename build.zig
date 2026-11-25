@@ -113,6 +113,7 @@ pub fn build(b: *std.Build) void {
 
     const run_gui_step = b.step("run-gui", "Run zigram-gui");
     const run_gui = b.addRunArtifact(gui);
+    run_gui.addPassthruArgs();
     run_gui.step.dependOn(b.getInstallStep());
     run_gui_step.dependOn(&run_gui.step);
 

@@ -15,6 +15,7 @@ const widgets = zigram_ui.widgets;
 
 const Login = zigram_ui.screens.login.Login;
 const ChatList = zigram_ui.screens.chat_list.ChatList;
+const TextTest = zigram_ui.screens.text_test.TextTest;
 
 const window_width: c_int = 760;
 const window_height: c_int = 600;
@@ -39,6 +40,9 @@ pub fn main(init: std.process.Init) !void {
     var login_screen = Login{ .allocator = init.gpa };
     defer login_screen.deinit();
     var chat_screen = ChatList{};
+    var test_screen = TextTest{};
+    const text_test: ?*TextTest =
+        if (try textTestRequested(init, arena)) &test_screen else null;
 
     var frame_arena = std.heap.ArenaAllocator.init(init.gpa);
     defer frame_arena.deinit();
@@ -51,8 +55,17 @@ pub fn main(init: std.process.Init) !void {
         }
 
         try session.drain();
-        if (drawFrame(&session, &login_screen, &chat_screen, &frame_arena)) return;
+        if (drawFrame(&session, &login_screen, &chat_screen, text_test, &frame_arena)) return;
     }
+}
+
+/// Whether the user asked for the font and IME test screen.
+fn textTestRequested(init: std.process.Init, arena: std.mem.Allocator) !bool {
+    const args = try init.minimal.args.toSlice(arena);
+    for (args[1..]) |arg| {
+        if (std.mem.eql(u8, arg, "--text-test")) return true;
+    }
+    return false;
 }
 
 /// Draws one frame; reports whether the user asked to quit.
@@ -60,6 +73,7 @@ fn drawFrame(
     session: *zigram_app.session.Session,
     login_screen: *Login,
     chat_screen: *ChatList,
+    text_test: ?*TextTest,
     frame_arena: *std.heap.ArenaAllocator,
 ) bool {
     gfx.newFrame();
@@ -69,14 +83,18 @@ fn drawFrame(
     gfx.setNextWindowPos(24, 24);
     gfx.setNextWindowSize(window_width, window_height);
     if (gfx.begin("ZiGram")) {
-        if (session.status) |text| {
-            widgets.errorText(text);
-            gfx.separator();
-        }
-        if (session.currentScreen() == .ready) {
-            if (chat_screen.draw(session, scratch) == .quit) return true;
-        } else if (login_screen.draw(session) == .quit) {
-            return true;
+        if (text_test) |screen| {
+            screen.draw();
+        } else {
+            if (session.status) |text| {
+                widgets.errorText(text);
+                gfx.separator();
+            }
+            if (session.currentScreen() == .ready) {
+                if (chat_screen.draw(session, scratch) == .quit) return true;
+            } else if (login_screen.draw(session) == .quit) {
+                return true;
+            }
         }
     }
     gfx.end();

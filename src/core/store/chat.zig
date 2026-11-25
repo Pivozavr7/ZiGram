@@ -32,6 +32,11 @@ pub const Chat = struct {
     title: []u8,
     type: ChatType,
     is_marked_as_unread: bool,
+    /// Unread message count; never negative after parsing.
+    unread_count: u32,
+    /// Sort order of the main chat list: bigger is newer, 0 when the chat
+    /// has no position there.
+    order: i64,
 
     allocator: Allocator,
 
@@ -62,6 +67,17 @@ pub const ChatPayload = struct {
     title: []const u8 = "",
     type: ?ChatTypePayload = null,
     is_marked_as_unread: bool = false,
+    unread_count: i32 = 0,
+    positions: []const PositionPayload = &.{},
+};
+
+const PositionPayload = struct {
+    list: ?ChatListPayload = null,
+    order: []const u8 = "",
+};
+
+const ChatListPayload = struct {
+    @"@type": []const u8 = "",
 };
 
 /// Builds a `Chat` from an already-parsed payload. The caller owns the
@@ -73,10 +89,26 @@ pub fn chatFromPayload(allocator: Allocator, payload: ChatPayload) Allocator.Err
         .title = try allocator.dupe(u8, payload.title),
         .type = undefined,
         .is_marked_as_unread = payload.is_marked_as_unread,
+        .unread_count = if (payload.unread_count > 0)
+            @intCast(payload.unread_count)
+        else
+            0,
+        .order = mainOrder(payload.positions),
     };
     errdefer chat.deinit();
     chat.type = try parseChatType(allocator, payload.type);
     return chat;
+}
+
+/// The sort order from the main list position; 0 when the chat is only in
+/// other lists or the value is not a number.
+fn mainOrder(positions: []const PositionPayload) i64 {
+    for (positions) |position| {
+        const list = position.list orelse continue;
+        if (!std.mem.eql(u8, list.@"@type", "chatListMain")) continue;
+        return std.fmt.parseInt(i64, position.order, 10) catch 0;
+    }
+    return 0;
 }
 
 const ChatTypePayload = struct {
@@ -133,6 +165,31 @@ test "chat parses supergroup and unread mark" {
     try std.testing.expect(chat.is_marked_as_unread);
     try std.testing.expectEqual(@as(i64, 2002), chat.type.supergroup.id);
     try std.testing.expect(chat.type.supergroup.is_channel);
+}
+
+test "chat parses unread count and main list order" {
+    var chat = try Chat.parse(
+        std.testing.allocator,
+        "{\"@type\":\"chat\",\"id\":1001,\"title\":\"Alice\",\"unread_count\":7," ++
+            "\"positions\":[{\"@type\":\"chatPosition\",\"list\":{\"@type\":\"chatListArchive\"},\"order\":\"5\"}," ++
+            "{\"@type\":\"chatPosition\",\"list\":{\"@type\":\"chatListMain\"},\"order\":\"1234567890123456\"}]}",
+    );
+    defer chat.deinit();
+
+    try std.testing.expectEqual(@as(u32, 7), chat.unread_count);
+    try std.testing.expectEqual(@as(i64, 1234567890123456), chat.order);
+}
+
+test "chat without main position and with a negative count" {
+    var chat = try Chat.parse(
+        std.testing.allocator,
+        "{\"@type\":\"chat\",\"id\":1001,\"title\":\"A\",\"unread_count\":-2," ++
+            "\"positions\":[{\"@type\":\"chatPosition\",\"list\":{\"@type\":\"chatListArchive\"},\"order\":\"5\"}]}",
+    );
+    defer chat.deinit();
+
+    try std.testing.expectEqual(@as(u32, 0), chat.unread_count);
+    try std.testing.expectEqual(@as(i64, 0), chat.order);
 }
 
 test "chat keeps unknown chat types" {

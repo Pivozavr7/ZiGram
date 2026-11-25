@@ -14,6 +14,10 @@ pub const ChatEntry = struct {
     title: []u8,
     /// Owned preview of the last message.
     preview: []u8,
+    /// Unread message count from TDLib.
+    unread_count: u32,
+    /// Sort order of the main chat list: bigger is newer, 0 when unknown.
+    order: i64,
 };
 
 /// One message of a chat history.
@@ -66,13 +70,23 @@ pub const State = struct {
         self.* = undefined;
     }
 
-    /// Inserts a chat or replaces the entry with the same id.
-    pub fn upsertChat(self: *State, chat_id: i64, title: []const u8) Allocator.Error!void {
+    /// Inserts a chat or replaces the entry with the same id, then re-sorts
+    /// the list by the main list order, newest first.
+    pub fn upsertChat(
+        self: *State,
+        chat_id: i64,
+        title: []const u8,
+        unread_count: u32,
+        order: i64,
+    ) Allocator.Error!void {
         for (self.chats.items) |*entry| {
             if (entry.chat_id != chat_id) continue;
             const title_copy = try self.allocator.dupe(u8, title);
             self.allocator.free(entry.title);
             entry.title = title_copy;
+            entry.unread_count = unread_count;
+            entry.order = order;
+            self.sortChats();
             return;
         }
 
@@ -84,7 +98,36 @@ pub const State = struct {
             .chat_id = chat_id,
             .title = title_copy,
             .preview = preview_copy,
+            .unread_count = unread_count,
+            .order = order,
         });
+        self.sortChats();
+    }
+
+    /// Sets the unread counter of a chat; unknown chats are ignored.
+    pub fn setUnread(self: *State, chat_id: i64, unread_count: u32) void {
+        for (self.chats.items) |*entry| {
+            if (entry.chat_id != chat_id) continue;
+            entry.unread_count = unread_count;
+            return;
+        }
+    }
+
+    /// Sets the main list order of a chat and re-sorts; unknown chats are
+    /// ignored.
+    pub fn setOrder(self: *State, chat_id: i64, order: i64) void {
+        for (self.chats.items) |*entry| {
+            if (entry.chat_id != chat_id) continue;
+            entry.order = order;
+            self.sortChats();
+            return;
+        }
+    }
+
+    /// Keeps the list ordered by the main list order, newest first; chats
+    /// without an order keep their relative position.
+    fn sortChats(self: *State) void {
+        std.mem.sort(ChatEntry, self.chats.items, {}, lessByOrder);
     }
 
     /// Replaces the preview of a chat; unknown chats are ignored.
@@ -164,23 +207,60 @@ pub const State = struct {
     }
 };
 
+/// Newest first: a bigger order comes first; chats without an order keep
+/// their relative position behind the ordered ones.
+fn lessByOrder(_: void, a: ChatEntry, b: ChatEntry) bool {
+    if (a.order != b.order) return a.order > b.order;
+    return a.chat_id < b.chat_id;
+}
+
 test "chats are inserted and updated" {
     var state = State.init(std.testing.allocator);
     defer state.deinit();
 
-    try state.upsertChat(1, "Alice");
-    try state.upsertChat(2, "Bob");
-    try state.upsertChat(1, "Alice Updated");
+    try state.upsertChat(1, "Alice", 0, 0);
+    try state.upsertChat(2, "Bob", 0, 0);
+    try state.upsertChat(1, "Alice Updated", 0, 0);
 
     try std.testing.expectEqual(@as(usize, 2), state.chats.items.len);
     try std.testing.expectEqualStrings("Alice Updated", state.chats.items[0].title);
+}
+
+test "chats are sorted by the main list order, newest first" {
+    var state = State.init(std.testing.allocator);
+    defer state.deinit();
+
+    try state.upsertChat(1, "Old", 0, 100);
+    try state.upsertChat(2, "New", 0, 300);
+    try state.upsertChat(3, "Middle", 0, 200);
+
+    try std.testing.expectEqual(@as(i64, 2), state.chats.items[0].chat_id);
+    try std.testing.expectEqual(@as(i64, 3), state.chats.items[1].chat_id);
+    try std.testing.expectEqual(@as(i64, 1), state.chats.items[2].chat_id);
+
+    state.setOrder(1, 400);
+    try std.testing.expectEqual(@as(i64, 1), state.chats.items[0].chat_id);
+}
+
+test "unread count is stored and updated" {
+    var state = State.init(std.testing.allocator);
+    defer state.deinit();
+
+    try state.upsertChat(1, "Alice", 3, 0);
+    try std.testing.expectEqual(@as(u32, 3), state.chats.items[0].unread_count);
+
+    state.setUnread(1, 0);
+    try std.testing.expectEqual(@as(u32, 0), state.chats.items[0].unread_count);
+
+    state.setUnread(42, 5);
+    try std.testing.expectEqual(@as(usize, 1), state.chats.items.len);
 }
 
 test "preview and messages are stored per chat" {
     var state = State.init(std.testing.allocator);
     defer state.deinit();
 
-    try state.upsertChat(1, "Alice");
+    try state.upsertChat(1, "Alice", 0, 0);
     try state.setPreview(1, "hi there");
     try state.appendMessage(10, 1, false, "hi there", 1700000000);
     try state.appendMessage(11, 2, true, "ignored", 1700000001);

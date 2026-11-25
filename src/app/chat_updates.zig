@@ -34,12 +34,16 @@ pub fn parseTolerantly(
 pub fn applyUpdate(app_state: *state.State, event: updates.Event) !void {
     switch (event) {
         .new_chat => |chat| {
-            try app_state.upsertChat(chat.id, chat.title);
+            try app_state.upsertChat(chat.id, chat.title, chat.unread_count, chat.order);
         },
         .chat_last_message => |payload| {
             if (payload.last_message) |message| {
                 try app_state.setPreview(payload.chat_id, messageText(&message));
             }
+            app_state.setOrder(payload.chat_id, payload.order);
+        },
+        .chat_read_inbox => |payload| {
+            app_state.setUnread(payload.chat_id, payload.unread_count);
         },
         .new_message => |message| {
             try app_state.appendMessage(
@@ -72,7 +76,7 @@ pub fn applyResponse(
         .get_chat => {
             var chat = try store.Chat.parse(sender.allocator, response_json);
             defer chat.deinit();
-            try app_state.upsertChat(chat.id, chat.title);
+            try app_state.upsertChat(chat.id, chat.title, chat.unread_count, chat.order);
         },
         .history => {
             var list = (try chats.parseMessages(sender.allocator, response_json)) orelse return;
@@ -98,4 +102,20 @@ fn messageText(message: *const store.Message) []const u8 {
         .other => |name| name,
         .unknown => "",
     };
+}
+
+test "read inbox and list order updates are applied to the state" {
+    var app_state = state.State.init(std.testing.allocator);
+    defer app_state.deinit();
+    try app_state.upsertChat(1001, "Alice", 0, 0);
+
+    try applyUpdate(&app_state, .{ .chat_read_inbox = .{ .chat_id = 1001, .unread_count = 4 } });
+    try std.testing.expectEqual(@as(u32, 4), app_state.chats.items[0].unread_count);
+
+    try applyUpdate(&app_state, .{ .chat_last_message = .{
+        .chat_id = 1001,
+        .last_message = null,
+        .order = 500,
+    } });
+    try std.testing.expectEqual(@as(i64, 500), app_state.chats.items[0].order);
 }

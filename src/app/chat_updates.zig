@@ -81,7 +81,10 @@ pub fn applyResponse(
         .history => {
             var list = (try chats.parseMessages(sender.allocator, response_json)) orelse return;
             defer list.deinit();
-            for (list.items) |*message| {
+            var ids = try sender.allocator.alloc(i64, list.items.len);
+            defer sender.allocator.free(ids);
+            for (list.items, 0..) |*message, index| {
+                ids[index] = message.id;
                 try app_state.appendMessage(
                     message.id,
                     message.chat_id,
@@ -90,8 +93,11 @@ pub fn applyResponse(
                     message.date,
                 );
             }
+            // The history is on screen now, so the messages are read.
+            try sender.markRead(request.chat_id, ids);
         },
         .send_message => {},
+        .view_messages => {},
     }
 }
 

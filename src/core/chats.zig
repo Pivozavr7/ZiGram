@@ -78,6 +78,30 @@ pub fn sendMessageRequest(
     return aw.toOwnedSlice();
 }
 
+/// Builds `viewMessages` JSON: tells TDLib the messages are being shown, so
+/// they are marked as read. `force_read` marks them read even when the chat
+/// is not open.
+pub fn viewMessagesRequest(
+    allocator: Allocator,
+    chat_id: i64,
+    message_ids: []const i64,
+) RequestError![]u8 {
+    var aw: std.Io.Writer.Allocating = try .initCapacity(allocator, 128 + message_ids.len * 24);
+    errdefer aw.deinit();
+    const writer = &aw.writer;
+
+    try writer.writeAll("{\"@type\":\"viewMessages\",\"chat_id\":");
+    try writer.print("{d}", .{chat_id});
+    try writer.writeAll(",\"message_ids\":[");
+    for (message_ids, 0..) |message_id, index| {
+        if (index > 0) try writer.writeAll(",");
+        try writer.print("{d}", .{message_id});
+    }
+    try writer.writeAll("],\"force_read\":true}");
+
+    return aw.toOwnedSlice();
+}
+
 /// The chat ids of a `chats` response.
 pub const ChatIds = struct {
     allocator: Allocator,
@@ -187,6 +211,16 @@ test "history request is encoded" {
 
     try std.testing.expectEqualStrings(
         "{\"@type\":\"getChatHistory\",\"chat_id\":1001,\"from_message_id\":0,\"limit\":30,\"only_local\":false}",
+        json,
+    );
+}
+
+test "view messages request is encoded" {
+    const json = try viewMessagesRequest(std.testing.allocator, 1001, &.{ 11, 12 });
+    defer std.testing.allocator.free(json);
+
+    try std.testing.expectEqualStrings(
+        "{\"@type\":\"viewMessages\",\"chat_id\":1001,\"message_ids\":[11,12],\"force_read\":true}",
         json,
     );
 }

@@ -31,6 +31,7 @@ pub const Kind = enum {
     get_chat,
     history,
     send_message,
+    view_messages,
 };
 
 /// A request sent to TDLib that has not answered yet.
@@ -130,6 +131,14 @@ pub const Commands = struct {
         const json = try chats.sendMessageRequest(self.allocator, chat_id, text);
         defer self.allocator.free(json);
         try self.sendChat(.send_message, json, chat_id);
+    }
+
+    /// Tells TDLib that the messages are shown, so they are marked as read.
+    pub fn markRead(self: *Commands, chat_id: i64, message_ids: []const i64) !void {
+        if (message_ids.len == 0) return;
+        const json = try chats.viewMessagesRequest(self.allocator, chat_id, message_ids);
+        defer self.allocator.free(json);
+        try self.sendChat(.view_messages, json, chat_id);
     }
 
     /// Removes and returns the request with the given `@extra`.

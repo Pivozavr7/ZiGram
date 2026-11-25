@@ -29,13 +29,15 @@ jobs:
           version: 0.17.1
 
       - name: Install SDL build dependencies
+        # freetype2 and pkg-config feed the FreeType font loader of imgui.
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libx11-dev libxext-dev libxcursor-dev libxrandr-dev \
             libxfixes-dev libxi-dev libxss-dev libxtst-dev \
             libwayland-dev wayland-protocols libxkbcommon-dev \
-            libegl1-mesa-dev libasound2-dev libdbus-1-dev libudev-dev
+            libegl1-mesa-dev libasound2-dev libdbus-1-dev libudev-dev \
+            pkg-config libfreetype-dev
 
       - name: Fetch dependencies
         run: bash scripts/fetch-deps.sh

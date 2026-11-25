@@ -241,6 +241,7 @@ split the prototype into small single-purpose modules before the ui grows.
 - [x] sdl3 + sdl_gpu + dear imgui window (hidpi aware)
 - [x] login screen wired to the authorization state machine
 - [x] basic chat list, conversation view and message input
+- [x] chat list sorted by telegram order with unread counts, chats marked read on open
 - [x] theme tokens and `.zon` loader
 - [x] text check: cyrillic, cjk, color emoji, ime (`zig build run-gui -- --text-test`)
 - [ ] virtual scrolling for long histories

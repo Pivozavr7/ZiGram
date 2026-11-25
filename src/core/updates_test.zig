@@ -57,6 +57,41 @@ test "updateNewMessage parses into a message" {
     try std.testing.expectEqual(@as(i64, 42), update.event.new_message.sender.user);
 }
 
+test "updateChatLastMessage carries the main list order" {
+    var update = (try Update.parse(
+        std.testing.allocator,
+        "{\"@type\":\"updateChatLastMessage\",\"chat_id\":1001,\"last_message\":null," ++
+            "\"positions\":[{\"@type\":\"chatPosition\",\"list\":{\"@type\":\"chatListMain\"},\"order\":\"987654321\"}]}",
+    )) orelse return error.TestUnexpectedResult;
+    defer update.deinit();
+
+    try std.testing.expect(update.event == .chat_last_message);
+    try std.testing.expectEqual(@as(i64, 987654321), update.event.chat_last_message.order);
+}
+
+test "updateChatReadInbox parses the unread count" {
+    var update = (try Update.parse(
+        std.testing.allocator,
+        "{\"@type\":\"updateChatReadInbox\",\"chat_id\":1001,\"unread_count\":5,\"last_read_inbox_message_id\":20}",
+    )) orelse return error.TestUnexpectedResult;
+    defer update.deinit();
+
+    try std.testing.expect(update.event == .chat_read_inbox);
+    try std.testing.expectEqual(@as(i64, 1001), update.event.chat_read_inbox.chat_id);
+    try std.testing.expectEqual(@as(u32, 5), update.event.chat_read_inbox.unread_count);
+}
+
+test "updateChatReadInbox clamps a negative count to zero" {
+    var update = (try Update.parse(
+        std.testing.allocator,
+        "{\"@type\":\"updateChatReadInbox\",\"chat_id\":1001,\"unread_count\":-1}",
+    )) orelse return error.TestUnexpectedResult;
+    defer update.deinit();
+
+    try std.testing.expect(update.event == .chat_read_inbox);
+    try std.testing.expectEqual(@as(u32, 0), update.event.chat_read_inbox.unread_count);
+}
+
 test "parse keeps unknown update types" {
     var update = (try Update.parse(
         std.testing.allocator,

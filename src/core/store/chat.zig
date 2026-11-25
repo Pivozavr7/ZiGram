@@ -71,7 +71,7 @@ pub const ChatPayload = struct {
     positions: []const PositionPayload = &.{},
 };
 
-const PositionPayload = struct {
+pub const PositionPayload = struct {
     list: ?ChatListPayload = null,
     order: []const u8 = "",
 };
@@ -102,7 +102,7 @@ pub fn chatFromPayload(allocator: Allocator, payload: ChatPayload) Allocator.Err
 
 /// The sort order from the main list position; 0 when the chat is only in
 /// other lists or the value is not a number.
-fn mainOrder(positions: []const PositionPayload) i64 {
+pub fn mainOrder(positions: []const PositionPayload) i64 {
     for (positions) |position| {
         const list = position.list orelse continue;
         if (!std.mem.eql(u8, list.@"@type", "chatListMain")) continue;

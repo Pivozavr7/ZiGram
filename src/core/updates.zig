@@ -26,6 +26,14 @@ pub const Event = union(enum) {
     chat_last_message: struct {
         chat_id: i64,
         last_message: ?store.Message,
+        /// Sort order of the main chat list after the update.
+        order: i64,
+    },
+    /// `updateChatReadInbox`: the read inbox pointer moved; unread counts
+    /// of older messages changed.
+    chat_read_inbox: struct {
+        chat_id: i64,
+        unread_count: u32,
     },
     /// `updateNewMessage`: a new incoming or outgoing message.
     new_message: store.Message,
@@ -45,6 +53,7 @@ pub const Update = struct {
             .chat_last_message => |*payload| {
                 if (payload.last_message) |*message| message.deinit();
             },
+            .chat_read_inbox => {},
             .new_message => |*message| message.deinit(),
             .other => |name| self.allocator.free(name),
         }
@@ -104,6 +113,9 @@ fn parseEvent(
     if (std.mem.eql(u8, type_name, "updateNewMessage")) {
         return parseNewMessage(allocator, event_json);
     }
+    if (std.mem.eql(u8, type_name, "updateChatReadInbox")) {
+        return parseChatReadInbox(allocator, event_json);
+    }
     return .{
         .allocator = allocator,
         .event = .{ .other = try allocator.dupe(u8, type_name) },
@@ -133,6 +145,7 @@ fn parseNewChat(allocator: Allocator, event_json: []const u8) ParseError!?Update
 const ChatLastMessagePayload = struct {
     chat_id: i64 = 0,
     last_message: ?store.MessagePayload = null,
+    positions: []const store.PositionPayload = &.{},
 };
 
 fn parseChatLastMessage(
@@ -156,6 +169,36 @@ fn parseChatLastMessage(
         .event = .{ .chat_last_message = .{
             .chat_id = parsed.value.chat_id,
             .last_message = last_message,
+            .order = store.mainOrder(parsed.value.positions),
+        } },
+    };
+}
+
+const ChatReadInboxPayload = struct {
+    chat_id: i64 = 0,
+    unread_count: i32 = 0,
+};
+
+fn parseChatReadInbox(
+    allocator: Allocator,
+    event_json: []const u8,
+) ParseError!?Update {
+    var parsed = try std.json.parseFromSlice(
+        ChatReadInboxPayload,
+        allocator,
+        event_json,
+        .{ .ignore_unknown_fields = true },
+    );
+    defer parsed.deinit();
+
+    return .{
+        .allocator = allocator,
+        .event = .{ .chat_read_inbox = .{
+            .chat_id = parsed.value.chat_id,
+            .unread_count = if (parsed.value.unread_count > 0)
+                @intCast(parsed.value.unread_count)
+            else
+                0,
         } },
     };
 }

@@ -106,6 +106,11 @@ pub fn applyResponse(
             // The history is on screen now, so the messages are read.
             try sender.markRead(request.chat_id, ids);
             try startDownloads(app_state, sender, &list);
+            // A short page means the top of the history has been reached.
+            app_state.setHistoryExhausted(
+                request.chat_id,
+                list.items.len < @as(usize, request.limit),
+            );
         },
         .send_message => {},
         .view_messages => {},

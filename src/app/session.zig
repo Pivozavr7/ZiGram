@@ -184,6 +184,14 @@ pub const Session = struct {
         try (try self.commandSender()).loadHistory(chat_id);
     }
 
+    /// Loads the history page older than everything stored for the chat;
+    /// does nothing once the whole history is loaded.
+    pub fn loadOlderHistory(self: *Session, chat_id: i64) !void {
+        if (self.state.isHistoryExhausted(chat_id)) return;
+        const oldest = self.state.oldestMessageId(chat_id) orelse return;
+        try (try self.commandSender()).loadOlderHistory(chat_id, oldest);
+    }
+
     pub fn sendMessage(self: *Session, chat_id: i64, text: []const u8) !void {
         try (try self.commandSender()).sendMessage(chat_id, text);
     }

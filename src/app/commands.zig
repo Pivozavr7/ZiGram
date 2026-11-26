@@ -14,6 +14,9 @@ const td = zigram.td;
 
 const Allocator = std.mem.Allocator;
 
+/// How many messages one history page asks for.
+const history_page_size: u32 = 50;
+
 /// Which login request is waiting for an answer.
 pub const Pending = enum {
     none,
@@ -41,6 +44,8 @@ pub const Request = struct {
     kind: Kind,
     /// Chat the request belongs to; 0 when it belongs to no chat.
     chat_id: i64 = 0,
+    /// Page size of a history request; 0 for the other kinds.
+    limit: u32 = 0,
 };
 
 /// Sends commands to TDLib and keeps track of the pending requests.
@@ -122,9 +127,12 @@ pub const Commands = struct {
 
     /// Asks TDLib for the newest messages of a chat.
     pub fn loadHistory(self: *Commands, chat_id: i64) !void {
-        const json = try chats.getChatHistoryRequest(self.allocator, chat_id, 0, 50);
-        defer self.allocator.free(json);
-        try self.sendChat(.history, json, chat_id);
+        try self.sendHistory(chat_id, 0);
+    }
+
+    /// Asks TDLib for the messages older than `from_message_id`.
+    pub fn loadOlderHistory(self: *Commands, chat_id: i64, from_message_id: i64) !void {
+        try self.sendHistory(chat_id, from_message_id);
     }
 
     /// Sends a text message to a chat.
@@ -183,6 +191,25 @@ pub const Commands = struct {
             .extra = extra,
             .kind = kind,
             .chat_id = chat_id,
+        });
+    }
+
+    /// One page of a chat history; the page size is remembered on the
+    /// request so the answer can tell a full page from the end of history.
+    fn sendHistory(self: *Commands, chat_id: i64, from_message_id: i64) !void {
+        const json = try chats.getChatHistoryRequest(
+            self.allocator,
+            chat_id,
+            from_message_id,
+            @intCast(history_page_size),
+        );
+        defer self.allocator.free(json);
+        const extra = try self.client.send(json);
+        try self.requests.append(self.allocator, .{
+            .extra = extra,
+            .kind = .history,
+            .chat_id = chat_id,
+            .limit = history_page_size,
         });
     }
 };

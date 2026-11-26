@@ -110,3 +110,18 @@ test "messages stay ordered by id and duplicates are ignored" {
     try std.testing.expectEqual(@as(?i64, 1), app_state.oldestMessageId(2));
     try std.testing.expectEqual(@as(?i64, null), app_state.oldestMessageId(404));
 }
+
+test "history exhaustion is tracked per chat" {
+    var app_state = State.init(std.testing.allocator);
+    defer app_state.deinit();
+
+    // An unknown chat counts as exhausted: there is nothing to scroll to.
+    try std.testing.expect(app_state.isHistoryExhausted(1));
+
+    try app_state.appendMessage(10, 1, false, "hi", 1700000000, null);
+    app_state.setHistoryExhausted(1, false);
+    try std.testing.expect(!app_state.isHistoryExhausted(1));
+
+    app_state.setHistoryExhausted(1, true);
+    try std.testing.expect(app_state.isHistoryExhausted(1));
+}

@@ -65,6 +65,8 @@ pub const State = struct {
     const ChatMessages = struct {
         chat_id: i64,
         items: std.ArrayList(MessageEntry),
+        /// True when TDLib returned a short page: no older messages exist.
+        history_exhausted: bool = false,
     };
 
     pub fn init(allocator: Allocator) State {
@@ -218,6 +220,23 @@ pub const State = struct {
         const items = self.messagesFor(chat_id);
         if (items.len == 0) return null;
         return items[0].message_id;
+    }
+
+    /// Remembers that no older messages exist for a chat.
+    pub fn setHistoryExhausted(self: *State, chat_id: i64, exhausted: bool) void {
+        for (self.messages.items) |*chat_messages| {
+            if (chat_messages.chat_id != chat_id) continue;
+            chat_messages.history_exhausted = exhausted;
+            return;
+        }
+    }
+
+    /// True when the history of a chat is fully loaded or the chat is unknown.
+    pub fn isHistoryExhausted(self: *const State, chat_id: i64) bool {
+        for (self.messages.items) |*chat_messages| {
+            if (chat_messages.chat_id == chat_id) return chat_messages.history_exhausted;
+        }
+        return true;
     }
 
     /// Selects a chat; reports whether the selection changed.

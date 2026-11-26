@@ -4,6 +4,8 @@
 // in Zig, in the screens and the widgets.
 
 #include <cstdint>
+#include <cfloat>
+#include <cstdio>
 #include "gfx_shim.h"
 #include "imgui.h"
 
@@ -104,6 +106,14 @@ bool zig_gfx_input_text_multiline(
 void zig_gfx_same_line(void)
 {
     ImGui::SameLine();
+}
+
+// A progress bar across the remaining width, with a percentage overlay.
+void zig_gfx_progress_bar(float fraction)
+{
+    char overlay[16];
+    snprintf(overlay, sizeof(overlay), "%d%%", (int)(fraction * 100.0f + 0.5f));
+    ImGui::ProgressBar(fraction, ImVec2(-FLT_MIN, 0.0f), overlay);
 }
 
 // The height of one framed widget (a button, an input): the screens reserve

@@ -54,8 +54,8 @@ test "preview and messages are stored per chat" {
 
     try app_state.upsertChat(1, "Alice", 0, 0);
     try app_state.setPreview(1, "hi there");
-    try app_state.appendMessage(10, 1, false, "hi there", 1700000000);
-    try app_state.appendMessage(11, 2, true, "ignored", 1700000001);
+    try app_state.appendMessage(10, 1, false, "hi there", 1700000000, null);
+    try app_state.appendMessage(11, 2, true, "ignored", 1700000001, null);
 
     try std.testing.expectEqualStrings("hi there", app_state.chats.items[0].preview);
     try std.testing.expectEqual(@as(usize, 1), app_state.messagesFor(1).len);

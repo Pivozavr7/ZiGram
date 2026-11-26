@@ -29,6 +29,8 @@ pub const MessageEntry = struct {
     text: []u8,
     /// Unix timestamp in seconds.
     date: i32,
+    /// File id of an attached photo; null for messages without one.
+    photo_file_id: ?i32 = null,
 };
 
 /// Download state of one file, fed by `updateFile`.
@@ -174,7 +176,8 @@ pub const State = struct {
         }
     }
 
-    /// Appends a message to the history of its chat.
+    /// Appends a message to the history of its chat; `photo_file_id` is
+    /// null for messages without a photo.
     pub fn appendMessage(
         self: *State,
         message_id: i64,
@@ -182,6 +185,7 @@ pub const State = struct {
         is_outgoing: bool,
         text: []const u8,
         date: i32,
+        photo_file_id: ?i32,
     ) Allocator.Error!void {
         const text_copy = try self.allocator.dupe(u8, text);
         errdefer self.allocator.free(text_copy);
@@ -194,6 +198,7 @@ pub const State = struct {
                 .is_outgoing = is_outgoing,
                 .text = text_copy,
                 .date = date,
+                .photo_file_id = photo_file_id,
             });
             return;
         }
@@ -214,6 +219,7 @@ pub const State = struct {
             .is_outgoing = is_outgoing,
             .text = text_copy,
             .date = date,
+            .photo_file_id = photo_file_id,
         });
         try self.messages.append(self.allocator, chat_messages);
     }

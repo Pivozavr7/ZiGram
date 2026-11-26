@@ -49,6 +49,7 @@ extern fn zig_gfx_input_text_multiline(
     height: f32,
 ) bool;
 extern fn zig_gfx_same_line() void;
+extern fn zig_gfx_progress_bar(fraction: f32) void;
 extern fn zig_gfx_frame_height() f32;
 extern fn zig_gfx_draw_qr(modules: [*]const bool, count: c_int, scale: c_int) bool;
 
@@ -145,6 +146,11 @@ pub fn selectable(label: [*:0]const u8, selected: bool) bool {
 
 pub fn sameLine() void {
     zig_gfx_same_line();
+}
+
+/// A progress bar across the remaining width; `fraction` is 0..=1.
+pub fn progressBar(fraction: f32) void {
+    zig_gfx_progress_bar(fraction);
 }
 
 /// The height in pixels of one framed widget: buttons and inputs. Used to

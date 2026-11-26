@@ -122,7 +122,16 @@ pub const ChatList = struct {
                 0,
             ) catch continue;
             widgets.text(line);
+            drawDownload(session, message);
         }
+    }
+
+    /// The progress bar of an attached photo that is still downloading.
+    fn drawDownload(session: *Session, message: zigram_app.state.MessageEntry) void {
+        const file_id = message.photo_file_id orelse return;
+        const progress = session.state.fileProgress(file_id) orelse return;
+        if (progress.is_completed) return;
+        widgets.progress(progress.fraction());
     }
 
     fn send(self: *ChatList, session: *Session) !void {

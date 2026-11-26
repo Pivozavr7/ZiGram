@@ -52,6 +52,7 @@ pub fn applyUpdate(app_state: *state.State, event: updates.Event) !void {
                 message.is_outgoing,
                 messageText(&message),
                 message.date,
+                photoFileId(&message),
             );
         },
         .file_progress => |file| {
@@ -99,6 +100,7 @@ pub fn applyResponse(
                     message.is_outgoing,
                     messageText(message),
                     message.date,
+                    photoFileId(message),
                 );
             }
             // The history is on screen now, so the messages are read.
@@ -139,6 +141,14 @@ fn messageText(message: *const store.Message) []const u8 {
         .photo => "[photo]",
         .other => |name| name,
         .unknown => "",
+    };
+}
+
+/// The file id of an attached photo; null for every other content.
+fn photoFileId(message: *const store.Message) ?i32 {
+    return switch (message.content) {
+        .photo => |photo| photo.file_id,
+        else => null,
     };
 }
 

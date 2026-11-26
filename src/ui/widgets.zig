@@ -14,6 +14,11 @@ pub fn disabled(value: []const u8) void {
     gfx.textDisabled(value);
 }
 
+/// A download progress bar with a percentage overlay.
+pub fn progress(fraction: f32) void {
+    gfx.progressBar(fraction);
+}
+
 /// A line of text that reports a problem.
 pub fn errorText(value: []const u8) void {
     gfx.textError(value);

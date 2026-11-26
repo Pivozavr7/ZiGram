@@ -116,6 +116,51 @@ void zig_gfx_progress_bar(float fraction)
     ImGui::ProgressBar(fraction, ImVec2(-FLT_MIN, 0.0f), overlay);
 }
 
+// The size of a text block; a wrap width below 0 disables wrapping.
+void zig_gfx_text_size(
+    const char* text, unsigned size, float wrap_width, float* out_w, float* out_h)
+{
+    const ImVec2 measured = ImGui::CalcTextSize(text, text + size, false, wrap_width);
+    *out_w = measured.x;
+    *out_h = measured.y;
+}
+
+// A filled rounded rectangle; used for the message bubbles.
+void zig_gfx_rect_filled(
+    float min_x, float min_y, float max_x, float max_y, zig_gfx_color color, float rounding)
+{
+    ImGui::GetWindowDrawList()->AddRectFilled(
+        ImVec2(min_x, min_y),
+        ImVec2(max_x, max_y),
+        ImGui::ColorConvertFloat4ToU32(vec4(color)),
+        rounding);
+}
+
+// An invisible placeholder of the given height; keeps the scroll range of
+// a virtualized list correct.
+void zig_gfx_dummy(float height)
+{
+    ImGui::Dummy(ImVec2(0.0f, height));
+}
+
+// Vertical scroll and inner height of the current window.
+float zig_gfx_scroll_y(void)
+{
+    return ImGui::GetScrollY();
+}
+
+float zig_gfx_window_height(void)
+{
+    return ImGui::GetWindowHeight();
+}
+
+// Moves the vertical scroll of the current window; used to follow new
+// messages at the bottom of a conversation.
+void zig_gfx_set_scroll_y(float value)
+{
+    ImGui::SetScrollY(value);
+}
+
 // The height of one framed widget (a button, an input): the screens reserve
 // it when they pin a row to the bottom of a pane.
 float zig_gfx_frame_height(void)

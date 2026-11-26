@@ -50,6 +50,25 @@ extern fn zig_gfx_input_text_multiline(
 ) bool;
 extern fn zig_gfx_same_line() void;
 extern fn zig_gfx_progress_bar(fraction: f32) void;
+extern fn zig_gfx_text_size(
+    text: [*]const u8,
+    size: c_uint,
+    wrap_width: f32,
+    out_w: *f32,
+    out_h: *f32,
+) void;
+extern fn zig_gfx_rect_filled(
+    min_x: f32,
+    min_y: f32,
+    max_x: f32,
+    max_y: f32,
+    color: theme.Color,
+    rounding: f32,
+) void;
+extern fn zig_gfx_dummy(height: f32) void;
+extern fn zig_gfx_scroll_y() f32;
+extern fn zig_gfx_window_height() f32;
+extern fn zig_gfx_set_scroll_y(value: f32) void;
 extern fn zig_gfx_frame_height() f32;
 extern fn zig_gfx_draw_qr(modules: [*]const bool, count: c_int, scale: c_int) bool;
 
@@ -151,6 +170,48 @@ pub fn sameLine() void {
 /// A progress bar across the remaining width; `fraction` is 0..=1.
 pub fn progressBar(fraction: f32) void {
     zig_gfx_progress_bar(fraction);
+}
+
+/// The space a text block occupies, wrapped at `wrap_width` pixels; a wrap
+/// width below 0 disables wrapping.
+pub fn textSize(value: []const u8, wrap_width: f32) theme.Size {
+    var width: f32 = 0;
+    var height: f32 = 0;
+    zig_gfx_text_size(value.ptr, @intCast(value.len), wrap_width, &width, &height);
+    return .{ .x = width, .y = height };
+}
+
+/// A filled rounded rectangle in window coordinates.
+pub fn rectFilled(
+    min_x: f32,
+    min_y: f32,
+    max_x: f32,
+    max_y: f32,
+    color: theme.Color,
+    rounding: f32,
+) void {
+    zig_gfx_rect_filled(min_x, min_y, max_x, max_y, color, rounding);
+}
+
+/// An invisible placeholder that keeps the scroll range of a virtualized
+/// list correct.
+pub fn dummy(height: f32) void {
+    zig_gfx_dummy(height);
+}
+
+/// Vertical scroll of the current window.
+pub fn scrollY() f32 {
+    return zig_gfx_scroll_y();
+}
+
+/// Inner height of the current window.
+pub fn windowHeight() f32 {
+    return zig_gfx_window_height();
+}
+
+/// Moves the vertical scroll of the current window.
+pub fn setScrollY(value: f32) void {
+    zig_gfx_set_scroll_y(value);
 }
 
 /// The height in pixels of one framed widget: buttons and inputs. Used to

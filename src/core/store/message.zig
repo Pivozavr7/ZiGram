@@ -22,11 +22,19 @@ pub const Sender = union(enum) {
 pub const Content = union(enum) {
     /// Owned copy of the plain text of a `messageText`.
     text: []u8,
+    /// A `messagePhoto`: only the file id, the bitmap arrives later.
+    photo: Photo,
     /// Any other `message*` content; the owned type name lets the UI show a
     /// placeholder like `[sticker]`.
     other: []u8,
     /// The content was missing from the payload.
     unknown,
+};
+
+/// The media reference of a `messagePhoto`.
+pub const Photo = struct {
+    /// TDLib file id of the full-size photo.
+    file_id: i32,
 };
 
 /// A message from history or an update.
@@ -112,6 +120,16 @@ const FormattedText = struct {
 const ContentPayload = struct {
     @"@type": []const u8,
     text: ?FormattedText = null,
+    photo: ?PhotoPayload = null,
+};
+
+/// The `photo` object of a `messagePhoto`; only the nested file id matters.
+const PhotoPayload = struct {
+    photo: ?PhotoFilePayload = null,
+};
+
+const PhotoFilePayload = struct {
+    id: i32 = 0,
 };
 
 fn parseSender(allocator: Allocator, payload: SenderPayload) Allocator.Error!Sender {
@@ -130,6 +148,9 @@ fn parseContent(allocator: Allocator, payload: ContentPayload) Allocator.Error!C
     if (std.mem.eql(u8, type_name, "messageText")) {
         const text = if (payload.text) |formatted| formatted.text else "";
         return .{ .text = try allocator.dupe(u8, text) };
+    } else if (std.mem.eql(u8, type_name, "messagePhoto")) {
+        const file = if (payload.photo) |photo| photo.photo else null;
+        return .{ .photo = .{ .file_id = if (file) |value| value.id else 0 } };
     } else {
         return .{ .other = try allocator.dupe(u8, type_name) };
     }
@@ -170,4 +191,24 @@ test "message without sender or content stores unknown" {
 
     try std.testing.expect(message.sender == .unknown);
     try std.testing.expect(message.content == .unknown);
+}
+
+test "message parses the file id of a photo" {
+    var message = try Message.parse(
+        std.testing.allocator,
+        "{\"@type\":\"message\",\"id\":13,\"chat_id\":1,\"content\":{\"@type\":\"messagePhoto\",\"photo\":{\"@type\":\"photo\",\"id\":77,\"photo\":{\"@type\":\"file\",\"id\":901}}}}",
+    );
+    defer message.deinit();
+
+    try std.testing.expectEqual(@as(i32, 901), message.content.photo.file_id);
+}
+
+test "photo content without a file stays id zero" {
+    var message = try Message.parse(
+        std.testing.allocator,
+        "{\"@type\":\"message\",\"id\":14,\"chat_id\":1,\"content\":{\"@type\":\"messagePhoto\"}}",
+    );
+    defer message.deinit();
+
+    try std.testing.expectEqual(@as(i32, 0), message.content.photo.file_id);
 }

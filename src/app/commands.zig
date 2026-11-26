@@ -32,6 +32,7 @@ pub const Kind = enum {
     history,
     send_message,
     view_messages,
+    download_file,
 };
 
 /// A request sent to TDLib that has not answered yet.
@@ -139,6 +140,13 @@ pub const Commands = struct {
         const json = try chats.viewMessagesRequest(self.allocator, chat_id, message_ids);
         defer self.allocator.free(json);
         try self.sendChat(.view_messages, json, chat_id);
+    }
+
+    /// Asks TDLib to download a file; the progress arrives as `updateFile`.
+    pub fn downloadFile(self: *Commands, file_id: i32) !void {
+        const json = try zigram.files.downloadFileRequest(self.allocator, file_id);
+        defer self.allocator.free(json);
+        try self.sendChat(.download_file, json, 0);
     }
 
     /// Removes and returns the request with the given `@extra`.

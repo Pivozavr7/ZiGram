@@ -31,11 +31,32 @@ pub const MessageEntry = struct {
     date: i32,
 };
 
+/// Download state of one file, fed by `updateFile`.
+pub const FileProgress = struct {
+    file_id: i32,
+    /// Bytes already downloaded.
+    downloaded: i64 = 0,
+    /// Total size, null until TDLib reports it.
+    size: ?i64 = null,
+    is_completed: bool = false,
+
+    /// Fraction of the file that is downloaded, 0..=1.
+    pub fn fraction(self: FileProgress) f32 {
+        const size = self.size orelse return 0;
+        if (size <= 0) return 0;
+        const downloaded: f32 = @floatFromInt(self.downloaded);
+        const total: f32 = @floatFromInt(size);
+        return @min(downloaded / total, 1);
+    }
+};
+
 /// Everything the UI reads: chats, histories and the current selection.
 pub const State = struct {
     allocator: Allocator,
     chats: std.ArrayList(ChatEntry),
     messages: std.ArrayList(ChatMessages),
+    /// Download progress by file id; only files the UI asked for appear.
+    files: std.AutoHashMap(i32, FileProgress),
     selected_chat_id: ?i64 = null,
 
     /// Messages of one chat, oldest first.
@@ -49,6 +70,7 @@ pub const State = struct {
             .allocator = allocator,
             .chats = .empty,
             .messages = .empty,
+            .files = .init(allocator),
         };
     }
 
@@ -66,8 +88,19 @@ pub const State = struct {
             chat_messages.items.deinit(self.allocator);
         }
         self.messages.deinit(self.allocator);
+        self.files.deinit();
 
         self.* = undefined;
+    }
+
+    /// Stores the download progress of a file.
+    pub fn setFileProgress(self: *State, progress: FileProgress) Allocator.Error!void {
+        try self.files.put(progress.file_id, progress);
+    }
+
+    /// The download progress of a file; null while TDLib never reported it.
+    pub fn fileProgress(self: *const State, file_id: i32) ?FileProgress {
+        return self.files.get(file_id);
     }
 
     /// Inserts a chat or replaces the entry with the same id, then re-sorts

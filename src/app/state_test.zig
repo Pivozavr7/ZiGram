@@ -3,6 +3,7 @@
 const std = @import("std");
 
 const state = @import("state.zig");
+const FileProgress = state.FileProgress;
 const State = state.State;
 
 test "chats are inserted and updated" {
@@ -69,4 +70,20 @@ test "selection reports changes" {
     try std.testing.expect(app_state.selectChat(5));
     try std.testing.expect(!app_state.selectChat(5));
     try std.testing.expectEqual(@as(?i64, 5), app_state.selectedChatId());
+}
+
+test "file download progress is stored per file" {
+    var app_state = State.init(std.testing.allocator);
+    defer app_state.deinit();
+
+    try std.testing.expectEqual(@as(?FileProgress, null), app_state.fileProgress(901));
+
+    try app_state.setFileProgress(.{ .file_id = 901, .downloaded = 100, .size = 400 });
+    const progress = app_state.fileProgress(901).?;
+    try std.testing.expectEqual(@as(f32, 0.25), progress.fraction());
+    try std.testing.expect(!progress.is_completed);
+
+    try app_state.setFileProgress(.{ .file_id = 901, .downloaded = 400, .size = 400, .is_completed = true });
+    try std.testing.expect(app_state.fileProgress(901).?.is_completed);
+    try std.testing.expectEqual(@as(f32, 1), app_state.fileProgress(901).?.fraction());
 }

@@ -27,6 +27,7 @@ pub const mainOrder = chat.mainOrder;
 pub const Message = message.Message;
 pub const Sender = message.Sender;
 pub const Content = message.Content;
+pub const Photo = message.Photo;
 pub const MessagePayload = message.MessagePayload;
 pub const messageFromPayload = message.messageFromPayload;
 

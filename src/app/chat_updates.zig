@@ -54,7 +54,14 @@ pub fn applyUpdate(app_state: *state.State, event: updates.Event) !void {
                 message.date,
             );
         },
-        .file_progress => {},
+        .file_progress => |file| {
+            try app_state.setFileProgress(.{
+                .file_id = file.id,
+                .downloaded = file.downloaded_prefix_size,
+                .size = file.size,
+                .is_completed = file.is_downloading_completed,
+            });
+        },
         .other => {},
     }
 }
@@ -96,9 +103,32 @@ pub fn applyResponse(
             }
             // The history is on screen now, so the messages are read.
             try sender.markRead(request.chat_id, ids);
+            try startDownloads(app_state, sender, &list);
         },
         .send_message => {},
         .view_messages => {},
+        .download_file => {},
+    }
+}
+
+/// Asks TDLib to download the photos of a history that just arrived. The
+/// state marks every file as requested, so a repeated history does not
+/// request it again.
+fn startDownloads(
+    app_state: *state.State,
+    sender: *commands.Commands,
+    list: *const chats.MessageList,
+) !void {
+    for (list.items) |*message| {
+        switch (message.content) {
+            .photo => |photo| {
+                if (photo.file_id == 0) continue;
+                if (app_state.fileProgress(photo.file_id) != null) continue;
+                try app_state.setFileProgress(.{ .file_id = photo.file_id });
+                try sender.downloadFile(photo.file_id);
+            },
+            else => {},
+        }
     }
 }
 
@@ -106,6 +136,7 @@ pub fn applyResponse(
 fn messageText(message: *const store.Message) []const u8 {
     return switch (message.content) {
         .text => |text| text,
+        .photo => "[photo]",
         .other => |name| name,
         .unknown => "",
     };
@@ -125,4 +156,21 @@ test "read inbox and list order updates are applied to the state" {
         .order = 500,
     } });
     try std.testing.expectEqual(@as(i64, 500), app_state.chats.items[0].order);
+}
+
+test "file download progress is applied to the state" {
+    var app_state = state.State.init(std.testing.allocator);
+    defer app_state.deinit();
+
+    var update = (try updates.Update.parse(
+        std.testing.allocator,
+        "{\"@type\":\"updateFile\",\"file\":{\"@type\":\"file\",\"id\":901,\"expected_size\":400,\"local\":{\"@type\":\"localFile\",\"downloaded_prefix_size\":100,\"is_downloading_completed\":false}}}",
+    )) orelse return error.TestUnexpectedResult;
+    defer update.deinit();
+
+    try applyUpdate(&app_state, update.event);
+
+    const progress = app_state.fileProgress(901).?;
+    try std.testing.expectEqual(@as(f32, 0.25), progress.fraction());
+    try std.testing.expect(!progress.is_completed);
 }

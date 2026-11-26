@@ -68,9 +68,7 @@ impl App {
         if let (Some(extra), Some(pending)) = (extra, self.login.pending) {
             if extra == pending {
                 self.login.pending = None;
-                if let Some(message) = auth::error_message(&json) {
-                    self.login.error = Some(message);
-                }
+                self.login.error = auth::error_message(&json);
             }
         }
     }
@@ -133,6 +131,7 @@ impl App {
     /// Sends one login request and remembers it until the answer arrives.
     fn send_login(&mut self, request: String) {
         if self.login.pending.is_some() {
+            self.login.error = Some("waiting for the previous request".into());
             return;
         }
         match self.core.send(&request) {

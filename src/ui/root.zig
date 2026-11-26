@@ -5,3 +5,8 @@ pub const fonts = @import("fonts.zig");
 pub const widgets = @import("widgets.zig");
 pub const theme = @import("theme/root.zig");
 pub const screens = @import("screens/root.zig");
+pub const virtual_list = @import("virtual_list.zig");
+
+test {
+    _ = @import("virtual_list.zig");
+}

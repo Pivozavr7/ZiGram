@@ -114,6 +114,22 @@ dependencies only point down. a few decisions worth knowing about:
 - **the ui never talks to tdlib directly.** it reads app state and sends commands through the app layer.
 - **small files, by rule.** source files stay short and single-purpose. the limits are enforced by the project's contribution rules.
 
+the iced frontend experiment runs beside imgui, over a small C ABI:
+
+```
+┌────────────────────────────────────────────────┐
+│  iced-shell/   rust + iced (experiment)        │
+├────────────────────────────────────────────────┤
+│  api.zig   C ABI: start · send · poll · free   │  → libzigram_core.a
+├────────────────────────────────────────────────┤
+│  app/ + core/    the same layers as above      │
+└────────────────────────────────────────────────┘
+```
+
+- **rust never sees credentials.** `zigram_start` takes only non-secret json options; api id and hash stay in `config.zon`, read by zig.
+- **every buffer crossing the boundary is a copy** allocated by zig and released with `zigram_free(ptr, len)`; no pointer is ever kept on either side.
+- the imgui frontend stays the default until the experiment proves itself (see the roadmap).
+
 <br>
 
 ## requirements
@@ -248,7 +264,7 @@ split the prototype into small single-purpose modules before the ui grows.
 - [x] theme tokens and `.zon` loader
 - [x] text check: cyrillic, cjk, color emoji, ime (`zig build run-gui -- --text-test`)
 - [x] virtual scrolling for long histories
-- [ ] iced frontend: the gui layer moves to iced (rust) behind a small c api, the core stays zig — staged experiment, s0 next
+- [ ] iced frontend: the gui layer moves to iced (rust) behind a small c api, the core stays zig — staged experiment, s0 done (C API + cargo shell, tests green), s1 next
 - [ ] three themes, configurable keybinds
 - [ ] d-bus notifications, search
 - [ ] media: photos, stickers, voice, video notes, gifs

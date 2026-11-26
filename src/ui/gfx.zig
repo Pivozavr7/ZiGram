@@ -30,8 +30,6 @@ extern fn zig_gfx_delay(ms: c_uint) void;
 extern fn zig_gfx_poll_event() Event;
 extern fn zig_gfx_new_frame() void;
 extern fn zig_gfx_render(r: f32, g: f32, b: f32, a: f32) void;
-extern fn zig_gfx_set_next_window_pos(x: f32, y: f32) void;
-extern fn zig_gfx_set_next_window_size(w: f32, h: f32) void;
 extern fn zig_gfx_begin(title: [*:0]const u8) bool;
 extern fn zig_gfx_end() void;
 extern fn zig_gfx_text(text: [*]const u8, size: c_uint) void;
@@ -51,6 +49,7 @@ extern fn zig_gfx_input_text_multiline(
     height: f32,
 ) bool;
 extern fn zig_gfx_same_line() void;
+extern fn zig_gfx_frame_height() f32;
 extern fn zig_gfx_draw_qr(modules: [*]const bool, count: c_int, scale: c_int) bool;
 
 /// Opens the window with the current theme and the system fonts; returns
@@ -89,14 +88,8 @@ pub fn render(r: f32, g: f32, b: f32, a: f32) void {
     zig_gfx_render(r, g, b, a);
 }
 
-pub fn setNextWindowPos(x: f32, y: f32) void {
-    zig_gfx_set_next_window_pos(x, y);
-}
-
-pub fn setNextWindowSize(w: f32, h: f32) void {
-    zig_gfx_set_next_window_size(w, h);
-}
-
+/// Opens the root window: it fills the whole client area and is not
+/// decorated; every screen draws inside it.
 pub fn begin(title: [*:0]const u8) bool {
     return zig_gfx_begin(title);
 }
@@ -152,6 +145,12 @@ pub fn selectable(label: [*:0]const u8, selected: bool) bool {
 
 pub fn sameLine() void {
     zig_gfx_same_line();
+}
+
+/// The height in pixels of one framed widget: buttons and inputs. Used to
+/// reserve a row at the bottom of a pane.
+pub fn frameHeight() f32 {
+    return zig_gfx_frame_height();
 }
 
 /// Draws an encoded QR code: `modules` holds `size * size` entries, `true`

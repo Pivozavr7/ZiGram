@@ -80,8 +80,6 @@ fn drawFrame(
     _ = frame_arena.reset(.retain_capacity);
     const scratch = frame_arena.allocator();
 
-    gfx.setNextWindowPos(24, 24);
-    gfx.setNextWindowSize(window_width, window_height);
     if (gfx.begin("ZiGram")) {
         if (text_test) |screen| {
             screen.draw();

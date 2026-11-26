@@ -18,19 +18,19 @@ ImVec4 vec4(const zig_gfx_color& color)
 
 extern "C" {
 
-void zig_gfx_set_next_window_pos(float x, float y)
-{
-    ImGui::SetNextWindowPos(ImVec2(x, y), ImGuiCond_Once);
-}
-
-void zig_gfx_set_next_window_size(float width, float height)
-{
-    ImGui::SetNextWindowSize(ImVec2(width, height), ImGuiCond_Once);
-}
-
+// The root window: fills the whole client area and has no decoration of its
+// own, so the SDL window frame is the only frame the user sees.
 bool zig_gfx_begin(const char* title)
 {
-    return ImGui::Begin(title);
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::SetNextWindowPos(ImVec2(0.0f, 0.0f), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(io.DisplaySize, ImGuiCond_Always);
+    return ImGui::Begin(
+        title,
+        nullptr,
+        ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+            ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoBringToFrontOnFocus |
+            ImGuiWindowFlags_NoNavFocus);
 }
 
 void zig_gfx_end(void)
@@ -104,6 +104,13 @@ bool zig_gfx_input_text_multiline(
 void zig_gfx_same_line(void)
 {
     ImGui::SameLine();
+}
+
+// The height of one framed widget (a button, an input): the screens reserve
+// it when they pin a row to the bottom of a pane.
+float zig_gfx_frame_height(void)
+{
+    return ImGui::GetFrameHeight();
 }
 
 } // extern "C"

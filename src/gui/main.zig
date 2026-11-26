@@ -40,6 +40,7 @@ pub fn main(init: std.process.Init) !void {
     var login_screen = Login{ .allocator = init.gpa };
     defer login_screen.deinit();
     var chat_screen = ChatList{};
+    defer chat_screen.deinit(init.gpa);
     var test_screen = TextTest{};
     const text_test: ?*TextTest =
         if (try textTestRequested(init, arena)) &test_screen else null;

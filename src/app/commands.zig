@@ -157,6 +157,14 @@ pub const Commands = struct {
         try self.sendChat(.download_file, json, 0);
     }
 
+    /// True while a history page of the chat still waits for an answer.
+    pub fn isLoadingHistory(self: *const Commands, chat_id: i64) bool {
+        for (self.requests.items) |request| {
+            if (request.kind == .history and request.chat_id == chat_id) return true;
+        }
+        return false;
+    }
+
     /// Removes and returns the request with the given `@extra`.
     pub fn take(self: *Commands, extra: u64) ?Request {
         for (self.requests.items, 0..) |*request, index| {

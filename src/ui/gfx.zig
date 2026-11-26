@@ -69,6 +69,10 @@ extern fn zig_gfx_dummy(height: f32) void;
 extern fn zig_gfx_scroll_y() f32;
 extern fn zig_gfx_window_height() f32;
 extern fn zig_gfx_set_scroll_y(value: f32) void;
+extern fn zig_gfx_cursor_screen_pos(out_x: *f32, out_y: *f32) void;
+extern fn zig_gfx_avail_width() f32;
+extern fn zig_gfx_set_cursor_x(value: f32) void;
+extern fn zig_gfx_text_at(x: f32, y: f32, text: [*]const u8, size: c_uint) void;
 extern fn zig_gfx_frame_height() f32;
 extern fn zig_gfx_draw_qr(modules: [*]const bool, count: c_int, scale: c_int) bool;
 
@@ -212,6 +216,29 @@ pub fn windowHeight() f32 {
 /// Moves the vertical scroll of the current window.
 pub fn setScrollY(value: f32) void {
     zig_gfx_set_scroll_y(value);
+}
+
+/// Where the cursor stands in screen coordinates.
+pub fn cursorScreenPos() theme.Size {
+    var x: f32 = 0;
+    var y: f32 = 0;
+    zig_gfx_cursor_screen_pos(&x, &y);
+    return .{ .x = x, .y = y };
+}
+
+/// Horizontal room left in the current region.
+pub fn availWidth() f32 {
+    return zig_gfx_avail_width();
+}
+
+/// Moves the horizontal cursor inside the current region.
+pub fn setCursorX(value: f32) void {
+    zig_gfx_set_cursor_x(value);
+}
+
+/// Draws text at a screen position without taking layout space.
+pub fn textAt(x: f32, y: f32, value: []const u8) void {
+    zig_gfx_text_at(x, y, value.ptr, @intCast(value.len));
 }
 
 /// The height in pixels of one framed widget: buttons and inputs. Used to

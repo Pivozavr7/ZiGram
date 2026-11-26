@@ -121,7 +121,7 @@ pub const ChatList = struct {
                 .{ prefix, message.text },
                 0,
             ) catch continue;
-            widgets.text(line);
+            _ = widgets.bubble(line, message.is_outgoing);
             drawDownload(session, message);
         }
     }

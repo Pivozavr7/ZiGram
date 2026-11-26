@@ -161,6 +161,38 @@ void zig_gfx_set_scroll_y(float value)
     ImGui::SetScrollY(value);
 }
 
+// Where the cursor stands in screen coordinates, and how much horizontal
+// room is left in the current region: the bubbles measure against both.
+void zig_gfx_cursor_screen_pos(float* out_x, float* out_y)
+{
+    const ImVec2 pos = ImGui::GetCursorScreenPos();
+    *out_x = pos.x;
+    *out_y = pos.y;
+}
+
+float zig_gfx_avail_width(void)
+{
+    return ImGui::GetContentRegionAvail().x;
+}
+
+// Moves the horizontal cursor inside the current region; a bubble that is
+// right aligned starts from `value`.
+void zig_gfx_set_cursor_x(float value)
+{
+    ImGui::SetCursorPosX(value);
+}
+
+// Draws text at a screen position without taking layout space; the bubble
+// draws its own background and needs the text exactly inside it.
+void zig_gfx_text_at(float x, float y, const char* text, unsigned size)
+{
+    ImGui::GetWindowDrawList()->AddText(
+        ImVec2(x, y),
+        ImGui::ColorConvertFloat4ToU32(vec4(zig_gfx_get_theme()->text)),
+        text,
+        text + size);
+}
+
 // The height of one framed widget (a button, an input): the screens reserve
 // it when they pin a row to the bottom of a pane.
 float zig_gfx_frame_height(void)

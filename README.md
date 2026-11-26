@@ -203,7 +203,7 @@ themes and keybinds will be separate files you can edit and reload (**planned**)
 ```
 stage r   cleanup        ██████████  5 / 5
 mvp 0     the core       ███████░░░  5 / 7
-mvp 1     the interface  ███░░░░░░░  3 / 11   ← we are here
+mvp 1     the interface  ████░░░░░░  4 / 11   ← we are here
 ```
 
 <details open>
@@ -247,7 +247,7 @@ split the prototype into small single-purpose modules before the ui grows.
 - [x] chat list sorted by telegram order with unread counts, chats marked read on open
 - [x] theme tokens and `.zon` loader
 - [x] text check: cyrillic, cjk, color emoji, ime (`zig build run-gui -- --text-test`)
-- [ ] virtual scrolling for long histories
+- [x] virtual scrolling for long histories
 - [ ] three themes, configurable keybinds
 - [ ] d-bus notifications, search
 - [ ] media: photos, stickers, voice, video notes, gifs

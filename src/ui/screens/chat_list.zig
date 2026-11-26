@@ -24,27 +24,25 @@ pub const ChatList = struct {
         session: *Session,
         scratch: std.mem.Allocator,
     ) Outcome {
-        self.drawChats(session, scratch);
-        gfx.sameLine();
-        self.drawMessages(session, scratch);
-
         const tokens = theme.current();
-        _ = gfx.inputMultiline("Message", self.input[0..], tokens.composer_height);
-        if (gfx.button("Send")) {
-            self.send(session) catch |err| {
-                session.reportError("sending the message", err);
-            };
-        }
+
+        const chats_shown = gfx.beginChild("Chats", tokens.panel_width, 0);
+        if (chats_shown) self.drawChats(session, scratch);
+        gfx.endChild();
+
         gfx.sameLine();
-        if (gfx.button("Quit")) return .quit;
-        return .keep_running;
+
+        const conversation_shown = gfx.beginChild("Conversation", 0, 0);
+        var outcome: Outcome = .keep_running;
+        if (conversation_shown) outcome = self.drawConversation(session, scratch);
+        gfx.endChild();
+        return outcome;
     }
 
+    /// The pane with the chat list; the caller opens and closes the region.
     fn drawChats(self: *ChatList, session: *Session, scratch: std.mem.Allocator) void {
         _ = self;
-        const tokens = theme.current();
-        if (!gfx.beginChild("Chats", tokens.panel_width, tokens.panel_height)) return;
-
+        widgets.text("Chats");
         if (session.state.chats.items.len == 0) {
             widgets.disabled("no chats yet");
         }
@@ -68,29 +66,63 @@ pub const ChatList = struct {
                 };
             }
         }
+    }
+
+    /// The pane with the header, the messages and the pinned composer.
+    fn drawConversation(
+        self: *ChatList,
+        session: *Session,
+        scratch: std.mem.Allocator,
+    ) Outcome {
+        const tokens = theme.current();
+        drawHeader(session);
+
+        // The composer row stays at the bottom: the messages get whatever
+        // is left of the pane after the composer, the button and the
+        // spacing around them.
+        const composer =
+            tokens.composer_height + gfx.frameHeight() + 2 * tokens.spacing.y;
+        const messages_shown = gfx.beginChild("Messages", 0, -composer);
+        if (messages_shown) self.drawMessages(session, scratch);
         gfx.endChild();
+
+        _ = gfx.inputMultiline("Message", self.input[0..], tokens.composer_height);
+        if (gfx.button("Send")) {
+            self.send(session) catch |err| {
+                session.reportError("sending the message", err);
+            };
+        }
+        gfx.sameLine();
+        if (gfx.button("Quit")) return .quit;
+        return .keep_running;
+    }
+
+    /// The title of the open chat above the messages.
+    fn drawHeader(session: *Session) void {
+        const chat_id = session.state.selectedChatId() orelse {
+            widgets.disabled("select a chat");
+            return;
+        };
+        for (session.state.chats.items) |*entry| {
+            if (entry.chat_id == chat_id) {
+                widgets.text(entry.title);
+                return;
+            }
+        }
     }
 
     fn drawMessages(self: *ChatList, session: *Session, scratch: std.mem.Allocator) void {
         _ = self;
-        const tokens = theme.current();
-        if (!gfx.beginChild("Messages", 0, tokens.panel_height)) return;
-
-        const chat_id = session.state.selectedChatId();
-        if (chat_id) |id| {
-            for (session.state.messagesFor(id)) |message| {
-                const prefix = if (message.is_outgoing) "you: " else "";
-                const line = scratch.printSentinel(
-                    "{s}{s}",
-                    .{ prefix, message.text },
-                    0,
-                ) catch continue;
-                widgets.text(line);
-            }
-        } else {
-            widgets.disabled("select a chat");
+        const chat_id = session.state.selectedChatId() orelse return;
+        for (session.state.messagesFor(chat_id)) |message| {
+            const prefix = if (message.is_outgoing) "you: " else "";
+            const line = scratch.printSentinel(
+                "{s}{s}",
+                .{ prefix, message.text },
+                0,
+            ) catch continue;
+            widgets.text(line);
         }
-        gfx.endChild();
     }
 
     fn send(self: *ChatList, session: *Session) !void {

@@ -87,3 +87,26 @@ test "file download progress is stored per file" {
     try std.testing.expect(app_state.fileProgress(901).?.is_completed);
     try std.testing.expectEqual(@as(f32, 1), app_state.fileProgress(901).?.fraction());
 }
+
+test "messages stay ordered by id and duplicates are ignored" {
+    var app_state = State.init(std.testing.allocator);
+    defer app_state.deinit();
+
+    // A loaded history first, then older pages prepended by id.
+    try app_state.appendMessage(10, 1, false, "third", 1700000002, null);
+    try app_state.appendMessage(30, 1, true, "fifth", 1700000004, null);
+    try app_state.appendMessage(20, 1, false, "fourth", 1700000003, null);
+    try app_state.appendMessage(10, 1, false, "third again", 1700000002, null);
+    // The first page of the history, older than everything stored.
+    try app_state.appendMessage(5, 1, false, "first", 1700000000, null);
+    try app_state.appendMessage(1, 2, true, "other chat", 1700000000, null);
+
+    const items = app_state.messagesFor(1);
+    try std.testing.expectEqual(@as(usize, 4), items.len);
+    try std.testing.expectEqualStrings("first", items[0].text);
+    try std.testing.expectEqualStrings("third", items[1].text);
+    try std.testing.expectEqualStrings("fifth", items[3].text);
+    try std.testing.expectEqual(@as(?i64, 5), app_state.oldestMessageId(1));
+    try std.testing.expectEqual(@as(?i64, 1), app_state.oldestMessageId(2));
+    try std.testing.expectEqual(@as(?i64, null), app_state.oldestMessageId(404));
+}

@@ -176,8 +176,9 @@ pub const State = struct {
         }
     }
 
-    /// Appends a message to the history of its chat; `photo_file_id` is
-    /// null for messages without a photo.
+    /// Appends a message to the history of its chat, keeping the messages
+    /// ordered by id, oldest first. A message that is already stored is
+    /// ignored; `photo_file_id` is null for messages without a photo.
     pub fn appendMessage(
         self: *State,
         message_id: i64,
@@ -187,33 +188,13 @@ pub const State = struct {
         date: i32,
         photo_file_id: ?i32,
     ) Allocator.Error!void {
+        const chat_messages = try self.chatMessages(chat_id);
+        const at = messagePosition(chat_messages.items.items, message_id);
+        if (at > 0 and chat_messages.items.items[at - 1].message_id == message_id) return;
+
         const text_copy = try self.allocator.dupe(u8, text);
         errdefer self.allocator.free(text_copy);
-
-        for (self.messages.items) |*chat_messages| {
-            if (chat_messages.chat_id != chat_id) continue;
-            try chat_messages.items.append(self.allocator, .{
-                .message_id = message_id,
-                .chat_id = chat_id,
-                .is_outgoing = is_outgoing,
-                .text = text_copy,
-                .date = date,
-                .photo_file_id = photo_file_id,
-            });
-            return;
-        }
-
-        var chat_messages: ChatMessages = .{
-            .chat_id = chat_id,
-            .items = .empty,
-        };
-        errdefer {
-            for (chat_messages.items.items) |*message| {
-                self.allocator.free(message.text);
-            }
-            chat_messages.items.deinit(self.allocator);
-        }
-        try chat_messages.items.append(self.allocator, .{
+        try chat_messages.items.insert(self.allocator, at, .{
             .message_id = message_id,
             .chat_id = chat_id,
             .is_outgoing = is_outgoing,
@@ -221,7 +202,6 @@ pub const State = struct {
             .date = date,
             .photo_file_id = photo_file_id,
         });
-        try self.messages.append(self.allocator, chat_messages);
     }
 
     /// Messages of a chat, oldest first; empty for an unknown chat.
@@ -230,6 +210,14 @@ pub const State = struct {
             if (chat_messages.chat_id == chat_id) return chat_messages.items.items;
         }
         return &[_]MessageEntry{};
+    }
+
+    /// The id of the oldest stored message of a chat; null when the history
+    /// is empty.
+    pub fn oldestMessageId(self: *const State, chat_id: i64) ?i64 {
+        const items = self.messagesFor(chat_id);
+        if (items.len == 0) return null;
+        return items[0].message_id;
     }
 
     /// Selects a chat; reports whether the selection changed.
@@ -244,6 +232,18 @@ pub const State = struct {
     pub fn selectedChatId(self: *const State) ?i64 {
         return self.selected_chat_id;
     }
+
+    /// Messages of a chat, creating the empty list on first use.
+    fn chatMessages(self: *State, chat_id: i64) Allocator.Error!*ChatMessages {
+        for (self.messages.items) |*chat_messages| {
+            if (chat_messages.chat_id == chat_id) return chat_messages;
+        }
+        try self.messages.append(self.allocator, .{
+            .chat_id = chat_id,
+            .items = .empty,
+        });
+        return &self.messages.items[self.messages.items.len - 1];
+    }
 };
 
 /// Newest first: a bigger order comes first; chats without an order keep
@@ -251,6 +251,22 @@ pub const State = struct {
 fn lessByOrder(_: void, a: ChatEntry, b: ChatEntry) bool {
     if (a.order != b.order) return a.order > b.order;
     return a.chat_id < b.chat_id;
+}
+
+/// The insert position of a message id in a history ordered by id: the
+/// index of the first message with a bigger id.
+fn messagePosition(items: []const MessageEntry, message_id: i64) usize {
+    var low: usize = 0;
+    var high: usize = items.len;
+    while (low < high) {
+        const mid = low + (high - low) / 2;
+        if (items[mid].message_id <= message_id) {
+            low = mid + 1;
+        } else {
+            high = mid;
+        }
+    }
+    return low;
 }
 
 test {

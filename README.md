@@ -1,6 +1,9 @@
 <div align="center">
 
-<img src="assets/logo.svg" alt="zigram logo" width="140" height="140">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/wordmark_on_dark.svg">
+  <img src="assets/wordmark_on_light.svg" alt="ziGram logo" width="300">
+</picture>
 
 # zigram
 
@@ -264,6 +267,19 @@ the hard parts, up front:
 - **text in immediate-mode uis is hard.** ime, color emoji and long variable-height message lists all need care. rtl scripts aren't supported by dear imgui at all.
 - **animated stickers (lottie/tgs)** are the most expensive feature, so they come last.
 - **zig moves fast.** the project pins a zig version and upgrades on purpose, not by accident.
+
+<br>
+
+## logo
+
+the orange tile with the lightning-z, the icon and the long wordmark, live in `assets/`:
+
+<img src="assets/icon_orange.svg" alt="ziGram icon" width="80" height="80">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/wordmark_on_dark.svg">
+  <img src="assets/wordmark_on_light.svg" alt="ziGram wordmark" width="280">
+</picture>
 
 <br>
 

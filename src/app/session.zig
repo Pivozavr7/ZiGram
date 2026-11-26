@@ -18,7 +18,7 @@ const commands = @import("commands.zig");
 const config = @import("config.zig");
 const login = @import("login.zig");
 const log = @import("log.zig");
-const parameters = @import("parameters.zig");
+const session_auth = @import("session_auth.zig");
 const state = @import("state.zig");
 
 const Allocator = std.mem.Allocator;
@@ -129,7 +129,7 @@ pub const Session = struct {
                 response.json,
             );
             if (maybe_update) |*update| {
-                try self.applyAuthorization(update);
+                try session_auth.applyAuthorization(self, update);
                 continue;
             }
 
@@ -197,77 +197,10 @@ pub const Session = struct {
         ) catch null);
     }
 
-    fn commandSender(self: *Session) error{ClientMissing}!*commands.Commands {
+    /// Sends a command to TDLib; reports a missing client.
+    pub fn commandSender(self: *Session) error{ClientMissing}!*commands.Commands {
         if (self.commands) |*cmd| return cmd;
         return error.ClientMissing;
-    }
-
-    fn applyAuthorization(self: *Session, update: *auth.Update) !void {
-        const new_state = update.state;
-        switch (new_state) {
-            // These states carry no screen of their own: keep the current one.
-            .other, .logging_out, .closing => {
-                update.deinit();
-                return;
-            },
-            else => {},
-        }
-
-        if (self.update) |*old| old.deinit();
-        self.update = update.*;
-        update.* = undefined; // the session owns the update now
-        self.applyAuthorizationState(new_state);
-    }
-
-    fn applyAuthorizationState(self: *Session, auth_state: auth.State) void {
-        const cmd = self.commandSender() catch return;
-        switch (auth_state) {
-            .wait_tdlib_parameters => {
-                if (!cmd.isPending()) {
-                    self.sendTdlibParameters() catch |err| {
-                        self.setStatus(config.describeError(self.allocator, err) catch null);
-                    };
-                }
-            },
-            .wait_phone_number, .wait_code, .wait_password, .wait_other_device_confirmation => {
-                cmd.clearPending();
-                self.clearStatus();
-            },
-            .ready => {
-                cmd.clearPending();
-                self.clearStatus();
-                cmd.loadChats() catch |err| {
-                    self.setStatus(std.fmt.allocPrint(
-                        self.allocator,
-                        "loadChats failed: {s}",
-                        .{@errorName(err)},
-                    ) catch null);
-                };
-            },
-            .wait_registration => {
-                self.setStatus("Registration of new accounts is not supported yet.");
-            },
-            .closed => {
-                self.setStatus("TDLib closed the session.");
-            },
-            .other, .logging_out, .closing => {},
-        }
-    }
-
-    fn sendTdlibParameters(self: *Session) !void {
-        const loaded = self.config orelse return error.ConfigMissing;
-        const cmd = try self.commandSender();
-
-        var paths = try parameters.Paths.init(self.allocator, self.home_dir);
-        defer paths.deinit();
-        try paths.create(self.io);
-
-        try cmd.sendTdlibParameters(.{
-            .api_id = @intCast(loaded.api_id),
-            .api_hash = loaded.api_hash,
-            .database_directory = paths.data_dir,
-            .files_directory = paths.files_dir,
-        });
     }
 
     fn applyResponse(self: *Session, response: td.Response) !void {

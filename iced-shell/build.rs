@@ -11,7 +11,10 @@ fn main() {
         .expect("repository root must exist");
 
     println!("cargo:rerun-if-changed={}", repo.join("src").display());
-    println!("cargo:rerun-if-changed={}", repo.join("build.zig").display());
+    println!(
+        "cargo:rerun-if-changed={}",
+        repo.join("build.zig").display()
+    );
     build_zig(&repo);
 
     let lib_dir = repo.join("zig-out/lib");

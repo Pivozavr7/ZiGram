@@ -33,10 +33,7 @@ fn start_query_version_and_stop() {
         let event = match core.poll(500).expect("poll must not fail") {
             Some(event) => event,
             None => {
-                assert!(
-                    Instant::now() < deadline,
-                    "no version response within 10s"
-                );
+                assert!(Instant::now() < deadline, "no version response within 10s");
                 continue;
             }
         };

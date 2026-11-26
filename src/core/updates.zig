@@ -37,6 +37,8 @@ pub const Event = union(enum) {
     },
     /// `updateNewMessage`: a new incoming or outgoing message.
     new_message: store.Message,
+    /// `updateFile`: local download state of a file changed.
+    file_progress: store.File,
     /// Unknown `update*` type, or a known type whose payload has an
     /// unexpected shape. The owned name lets a caller log or ignore it.
     other: []u8,
@@ -55,6 +57,7 @@ pub const Update = struct {
             },
             .chat_read_inbox => {},
             .new_message => |*message| message.deinit(),
+            .file_progress => |*file| file.deinit(),
             .other => |name| self.allocator.free(name),
         }
         self.* = undefined;
@@ -115,6 +118,9 @@ fn parseEvent(
     }
     if (std.mem.eql(u8, type_name, "updateChatReadInbox")) {
         return parseChatReadInbox(allocator, event_json);
+    }
+    if (std.mem.eql(u8, type_name, "updateFile")) {
+        return parseFile(allocator, event_json);
     }
     return .{
         .allocator = allocator,
@@ -206,6 +212,26 @@ fn parseChatReadInbox(
 const NewMessagePayload = struct {
     message: ?store.MessagePayload = null,
 };
+
+const UpdateFilePayload = struct {
+    file: ?store.FilePayload = null,
+};
+
+fn parseFile(allocator: Allocator, event_json: []const u8) ParseError!?Update {
+    var parsed = try std.json.parseFromSlice(
+        UpdateFilePayload,
+        allocator,
+        event_json,
+        .{ .ignore_unknown_fields = true },
+    );
+    defer parsed.deinit();
+
+    const file_payload = parsed.value.file orelse return null;
+    return .{
+        .allocator = allocator,
+        .event = .{ .file_progress = try store.fileFromPayload(allocator, file_payload) },
+    };
+}
 
 fn parseNewMessage(allocator: Allocator, event_json: []const u8) ParseError!?Update {
     var parsed = try std.json.parseFromSlice(

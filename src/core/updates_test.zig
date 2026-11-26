@@ -140,3 +140,17 @@ test "parse returns null for malformed known updates" {
 
     try std.testing.expectEqual(@as(?Update, null), maybe);
 }
+
+test "updateFile reports download progress" {
+    var update = (try Update.parse(
+        std.testing.allocator,
+        "{\"@type\":\"updateFile\",\"file\":{\"@type\":\"file\",\"id\":9,\"expected_size\":2048,\"local\":{\"@type\":\"localFile\",\"downloaded_prefix_size\":512,\"is_downloading_completed\":false}}}",
+    )) orelse return error.TestUnexpectedResult;
+    defer update.deinit();
+
+    try std.testing.expect(update.event == .file_progress);
+    try std.testing.expectEqual(@as(i32, 9), update.event.file_progress.id);
+    try std.testing.expectEqual(@as(i64, 2048), update.event.file_progress.size.?);
+    try std.testing.expectEqual(@as(i64, 512), update.event.file_progress.downloaded_prefix_size);
+    try std.testing.expectEqual(@as(f32, 0.25), update.event.file_progress.progress());
+}

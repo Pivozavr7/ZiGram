@@ -54,6 +54,7 @@ pub fn applyUpdate(app_state: *state.State, event: updates.Event) !void {
                 message.date,
             );
         },
+        .file_progress => {},
         .other => {},
     }
 }

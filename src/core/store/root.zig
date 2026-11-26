@@ -31,6 +31,8 @@ pub const MessagePayload = message.MessagePayload;
 pub const messageFromPayload = message.messageFromPayload;
 
 pub const File = file.File;
+pub const FilePayload = file.FilePayload;
+pub const fileFromPayload = file.fileFromPayload;
 
 test {
     _ = @import("user.zig");

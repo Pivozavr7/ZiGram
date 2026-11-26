@@ -16,7 +16,7 @@ const log = app.log;
 const Allocator = std.mem.Allocator;
 
 /// Version of this C ABI, returned by `zigram_version`.
-const api_version = "0.1.0";
+const api_version = "0.2.0";
 
 /// How long `zigram_stop` waits for TDLib to confirm the shutdown.
 const close_timeout_ms: u32 = 5_000;
@@ -28,6 +28,8 @@ const State = struct {
     io: std.Io,
     client: *td.Client,
     config: config.Config,
+    /// Owned `$HOME`; TDLib data directories are built from it.
+    home: []const u8,
 };
 
 /// A TDLib event handed to the caller. `json` is owned by the caller and is
@@ -68,7 +70,10 @@ fn start(config_json: []const u8) !*anyopaque {
     threaded.* = std.Io.Threaded.init(gpa, .{});
     errdefer threaded.deinit();
 
-    var cfg = try loadConfig(gpa, threaded.io(), config_json);
+    const home = try loadHome(gpa);
+    errdefer gpa.free(home);
+
+    var cfg = try loadConfig(gpa, threaded.io(), home, config_json);
     errdefer cfg.deinit(gpa);
 
     const client = try app.client.start(gpa, threaded.io(), log.Logger{}, cfg);
@@ -85,18 +90,24 @@ fn start(config_json: []const u8) !*anyopaque {
         .io = threaded.io(),
         .client = client,
         .config = cfg,
+        .home = home,
     };
     return state;
 }
 
-/// Reads `$HOME`, loads `config.zon` when present and applies the JSON
-/// options on top of it.
-fn loadConfig(gpa: Allocator, io: std.Io, config_json: []const u8) !config.Config {
-    const home: []const u8 = if (std.c.getenv("HOME")) |value|
-        std.mem.span(value)
-    else
-        "";
+/// Reads `$HOME`; without it the data directories end up relative.
+fn loadHome(gpa: Allocator) ![]const u8 {
+    const value = std.c.getenv("HOME") orelse return try gpa.dupe(u8, "");
+    return try gpa.dupe(u8, std.mem.span(value));
+}
 
+/// Loads `config.zon` when present and applies the JSON options on top.
+fn loadConfig(
+    gpa: Allocator,
+    io: std.Io,
+    home: []const u8,
+    config_json: []const u8,
+) !config.Config {
     // A missing or broken config is not fatal for the shell: it starts
     // without credentials and fails later, at login. The ImGui client
     // treats the same situation as fatal.
@@ -153,6 +164,7 @@ fn stopState(state: *State) void {
     state.client.deinit();
     state.allocator.destroy(state.client);
     state.config.deinit(state.allocator);
+    state.allocator.free(state.home);
     state.threaded.deinit();
     state.allocator.destroy(state.threaded);
     state.allocator.destroy(state);
@@ -163,6 +175,37 @@ fn stopState(state: *State) void {
 export fn zigram_send(handle: ?*anyopaque, request_json: [*:0]const u8) u64 {
     const state: *State = @ptrCast(@alignCast(handle orelse return 0));
     return state.client.send(std.mem.span(request_json)) catch 0;
+}
+
+/// Sends the credentials and data directories from `config.zon` to TDLib,
+/// once per start right after `authorizationStateWaitTdlibParameters`.
+/// Returns the assigned `@extra`, or 0 when the config has no credentials.
+/// Rust never sees the api id or hash.
+export fn zigram_send_tdlib_parameters(handle: ?*anyopaque) u64 {
+    const state: *State = @ptrCast(@alignCast(handle orelse return 0));
+    return sendTdlibParameters(state) catch |err| {
+        std.log.err("zigram_send_tdlib_parameters: {s}", .{@errorName(err)});
+        return 0;
+    };
+}
+
+/// Builds `setTdlibParameters` from the loaded config and the data paths.
+fn sendTdlibParameters(state: *State) !u64 {
+    const cfg = state.config;
+    if (cfg.api_id == 0 or cfg.api_hash.len == 0) return error.ConfigIncomplete;
+
+    var paths = try app.parameters.Paths.init(state.allocator, state.home);
+    defer paths.deinit();
+    try paths.create(state.io);
+
+    const json = try zigram.auth.setTdlibParametersRequest(state.allocator, .{
+        .api_id = @intCast(cfg.api_id),
+        .api_hash = cfg.api_hash,
+        .database_directory = paths.data_dir,
+        .files_directory = paths.files_dir,
+    });
+    defer state.allocator.free(json);
+    return state.client.send(json);
 }
 
 /// Waits up to `timeout_ms` for one event. Returns 1 when `out` is filled
@@ -210,4 +253,8 @@ test "zigram_free accepts null and real buffers" {
     zigram_free(null, 0);
     const buffer = try std.heap.c_allocator.dupe(u8, "event");
     zigram_free(buffer.ptr, buffer.len);
+}
+
+test "sending tdlib parameters without a handle is rejected" {
+    try std.testing.expectEqual(@as(u64, 0), zigram_send_tdlib_parameters(null));
 }

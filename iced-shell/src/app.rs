@@ -2,6 +2,7 @@
 
 use std::collections::VecDeque;
 use std::sync::Arc;
+use std::time::Duration;
 
 use iced::widget::{column, text, Scrollable};
 use iced::Task;
@@ -15,6 +16,9 @@ const VISIBLE_LINES: usize = 50;
 
 /// Longest event excerpt shown, in bytes.
 const MAX_PREVIEW: usize = 160;
+
+/// How long a login request may stay unanswered before the ui gives up.
+const PENDING_TIMEOUT: Duration = Duration::from_secs(15);
 
 /// The whole ui state of the debug shell.
 pub struct App {
@@ -30,8 +34,15 @@ pub struct App {
 /// What the window asks the app to do.
 #[derive(Debug, Clone)]
 pub enum Message {
-    Event { json: Vec<u8>, extra: Option<u64> },
+    Event {
+        json: Vec<u8>,
+        extra: Option<u64>,
+    },
     Login(login::Message),
+    /// The login request `extra` got no answer in time.
+    Timeout {
+        extra: u64,
+    },
 }
 
 impl App {
@@ -47,10 +58,25 @@ impl App {
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::Event { json, extra } => self.on_event(json, extra),
+            Message::Event { json, extra } => {
+                self.on_event(json, extra);
+                Task::none()
+            }
             Message::Login(login_message) => self.on_login(login_message),
+            Message::Timeout { extra } => {
+                self.on_timeout(extra);
+                Task::none()
+            }
         }
-        Task::none()
+    }
+
+    /// Fails the request that went silent; a late answer is then
+    /// ignored by the `@extra` check for free.
+    fn on_timeout(&mut self, extra: u64) {
+        if self.login.pending == Some(extra) {
+            self.login.pending = None;
+            self.login.error = Some("no answer from the core".into());
+        }
     }
 
     /// One event from the poll thread: log it, apply authorization
@@ -104,11 +130,20 @@ impl App {
     }
 
     /// Turns a login message into a request to the core.
-    fn on_login(&mut self, message: login::Message) {
+    fn on_login(&mut self, message: login::Message) -> Task<Message> {
         match message {
-            login::Message::Phone(value) => self.login.phone = value,
-            login::Message::Code(value) => self.login.code = value,
-            login::Message::Password(value) => self.login.password = value,
+            login::Message::Phone(value) => {
+                self.login.phone = value;
+                Task::none()
+            }
+            login::Message::Code(value) => {
+                self.login.code = value;
+                Task::none()
+            }
+            login::Message::Password(value) => {
+                self.login.password = value;
+                Task::none()
+            }
             login::Message::Submit => self.submit(),
             login::Message::Qr => {
                 self.login.leave_back_to_phone();
@@ -116,26 +151,31 @@ impl App {
             }
             login::Message::Resend => self.send_login(auth::resend_request()),
             login::Message::BackToPhone => self.back_to_phone(),
+            login::Message::Cancel => {
+                self.login.pending = None;
+                Task::none()
+            }
         }
     }
 
     /// Leaves the QR panel for the phone form. With a remembered number
     /// the core is told right away; TDLib then moves back to the code
     /// state on its own.
-    fn back_to_phone(&mut self) {
+    fn back_to_phone(&mut self) -> Task<Message> {
         self.login.go_back_to_phone();
         if !self.login.phone.is_empty() {
-            self.send_login(auth::phone_request(&self.login.phone));
+            return self.send_login(auth::phone_request(&self.login.phone));
         }
+        Task::none()
     }
 
     /// Sends the request that belongs to the current state and input.
-    fn submit(&mut self) {
+    fn submit(&mut self) -> Task<Message> {
         if self.login.wants_phone() {
             if !self.login.phone.is_empty() {
-                self.send_login(auth::phone_request(&self.login.phone));
+                return self.send_login(auth::phone_request(&self.login.phone));
             }
-            return;
+            return Task::none();
         }
         let request = match &self.auth {
             Some(AuthState::WaitPhoneNumber) if !self.login.phone.is_empty() => {
@@ -147,23 +187,28 @@ impl App {
             Some(AuthState::WaitPassword { .. }) if !self.login.password.is_empty() => {
                 auth::password_request(&self.login.password)
             }
-            _ => return,
+            _ => return Task::none(),
         };
-        self.send_login(request);
+        self.send_login(request)
     }
 
-    /// Sends one login request and remembers it until the answer arrives.
-    fn send_login(&mut self, request: String) {
+    /// Sends one login request, remembers it until the answer arrives
+    /// and arms a timeout in case the answer never comes.
+    fn send_login(&mut self, request: String) -> Task<Message> {
         if self.login.pending.is_some() {
             self.login.error = Some("waiting for the previous request".into());
-            return;
+            return Task::none();
         }
         match self.core.send(&request) {
             Ok(extra) => {
                 self.login.pending = Some(extra);
                 self.login.error = None;
+                timeout_task(extra)
             }
-            Err(err) => self.login.error = Some(err.to_string()),
+            Err(err) => {
+                self.login.error = Some(err.to_string());
+                Task::none()
+            }
         }
     }
 
@@ -201,4 +246,19 @@ fn preview(json: &[u8], extra: Option<u64>) -> String {
         Some(value) => format!("[{value}] {body}"),
         None => body.into_owned(),
     }
+}
+
+/// Fails the request `extra` when no answer arrives in time. The sleep
+/// lives on its own thread, so the ui executor stays free; a cancelled
+/// request just ignores the late tick.
+fn timeout_task(extra: u64) -> Task<Message> {
+    let (tx, rx) = iced::futures::channel::oneshot::channel();
+    std::thread::spawn(move || {
+        std::thread::sleep(PENDING_TIMEOUT);
+        let _ = tx.send(());
+    });
+    Task::future(async move {
+        let _ = rx.await;
+        Message::Timeout { extra }
+    })
 }

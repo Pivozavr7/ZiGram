@@ -36,6 +36,7 @@ pub enum Message {
     Qr,
     Resend,
     BackToPhone,
+    Cancel,
 }
 
 impl Login {
@@ -120,6 +121,13 @@ impl Login {
         };
     }
 
+    /// The in-flight state: a waiting line and a way to give up.
+    fn pending_row<'a>(&self, panel: Column<'a, Message>, label: &'a str) -> Column<'a, Message> {
+        panel
+            .push(text(label))
+            .push(button("Cancel").on_press(Message::Cancel))
+    }
+
     fn view_phone<'a>(&self, panel: Column<'a, Message>) -> Column<'a, Message> {
         let panel = panel.push(text("Enter your phone number:")).push(
             text_input("Phone", &self.phone)
@@ -127,7 +135,7 @@ impl Login {
                 .on_submit(Message::Submit),
         );
         if self.pending.is_some() {
-            return panel.push(text("authorizing…"));
+            return self.pending_row(panel, "authorizing…");
         }
         panel
             .push(button("Sign in").on_press(Message::Submit))
@@ -150,7 +158,7 @@ impl Login {
                 .on_submit(Message::Submit),
         );
         if self.pending.is_some() {
-            return panel.push(text("checking the code…"));
+            return self.pending_row(panel, "checking the code…");
         }
         panel
             .push(button("Continue").on_press(Message::Submit))
@@ -174,7 +182,7 @@ impl Login {
                 .on_submit(Message::Submit),
         );
         if self.pending.is_some() {
-            return panel.push(text("checking the password…"));
+            return self.pending_row(panel, "checking the password…");
         }
         panel.push(button("Continue").on_press(Message::Submit))
     }

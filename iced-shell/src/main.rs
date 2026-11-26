@@ -28,7 +28,7 @@ fn main() -> iced::Result {
         App::update,
         App::view,
     )
-    .title("ziGram · iced S1 debug")
+    .title("ziGram · iced S2 login")
     .window_size((760.0, 520.0))
     .run()
 }
@@ -44,11 +44,30 @@ fn start_core() -> Core {
     }
 }
 
-/// Non-secret startup options: point the core at the vendored TDLib.
+/// Non-secret startup options: `ZIGRAM_START_CONFIG` (json) merged over
+/// the vendored TDLib path, so `database_dir` can point at an empty test
+/// database without touching the logged-in session.
 fn start_config() -> String {
-    let tdlib = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../vendor/tdlib/libtdjson.so");
-    match tdlib.canonicalize() {
-        Ok(path) => format!(r#"{{"tdlib_path":"{}"}}"#, path.display()),
-        Err(_) => "{}".to_string(),
+    let mut options: serde_json::Value = std::env::var("ZIGRAM_START_CONFIG")
+        .ok()
+        .and_then(|raw| serde_json::from_str(&raw).ok())
+        .unwrap_or_else(|| serde_json::json!({}));
+    if !options
+        .get("tdlib_path")
+        .is_some_and(|value| !value.is_null())
+    {
+        if let Some(path) = vendored_tdlib() {
+            options["tdlib_path"] = serde_json::Value::String(path);
+        }
     }
+    options.to_string()
+}
+
+/// Absolute path of the vendored TDLib, when it exists.
+fn vendored_tdlib() -> Option<String> {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../vendor/tdlib/libtdjson.so")
+        .canonicalize()
+        .ok()
+        .map(|path| path.display().to_string())
 }

@@ -12,6 +12,7 @@ const app = @import("zigram_app");
 const td = zigram.td;
 const config = app.config;
 const log = app.log;
+const options = @import("api_options.zig");
 
 const Allocator = std.mem.Allocator;
 
@@ -30,6 +31,8 @@ const State = struct {
     config: config.Config,
     /// Owned `$HOME`; TDLib data directories are built from it.
     home: []const u8,
+    /// Owned `database_dir` option; null means the paths under `$HOME`.
+    database_dir: ?[]u8,
 };
 
 /// A TDLib event handed to the caller. `json` is owned by the caller and is
@@ -39,12 +42,6 @@ const Event = extern struct {
     len: usize,
     extra: u64,
     has_extra: c_int,
-};
-
-/// Non-secret startup options the shell may pass as JSON. Unknown fields are
-/// ignored, so a newer shell stays compatible with an older core.
-const StartOptions = struct {
-    tdlib_path: ?[]const u8 = null,
 };
 
 /// The C ABI version string. The memory is static; never free it.
@@ -73,8 +70,16 @@ fn start(config_json: []const u8) !*anyopaque {
     const home = try loadHome(gpa);
     errdefer gpa.free(home);
 
-    var cfg = try loadConfig(gpa, threaded.io(), home, config_json);
+    var overrides = try options.parseOverrides(gpa, config_json);
+    errdefer overrides.deinit(gpa);
+
+    var cfg = try loadConfig(gpa, threaded.io(), home);
     errdefer cfg.deinit(gpa);
+    if (overrides.tdlib_path) |path| {
+        if (cfg.tdlib_path) |old| gpa.free(old);
+        cfg.tdlib_path = path;
+        overrides.tdlib_path = null;
+    }
 
     const client = try app.client.start(gpa, threaded.io(), log.Logger{}, cfg);
     errdefer {
@@ -91,7 +96,10 @@ fn start(config_json: []const u8) !*anyopaque {
         .client = client,
         .config = cfg,
         .home = home,
+        .database_dir = overrides.database_dir,
     };
+    overrides.database_dir = null;
+    overrides.deinit(gpa);
     return state;
 }
 
@@ -101,17 +109,13 @@ fn loadHome(gpa: Allocator) ![]const u8 {
     return try gpa.dupe(u8, std.mem.span(value));
 }
 
-/// Loads `config.zon` when present and applies the JSON options on top.
-fn loadConfig(
-    gpa: Allocator,
-    io: std.Io,
-    home: []const u8,
-    config_json: []const u8,
-) !config.Config {
+/// Loads `config.zon` when present; without it the core starts without
+/// credentials and fails later, at login.
+fn loadConfig(gpa: Allocator, io: std.Io, home: []const u8) !config.Config {
     // A missing or broken config is not fatal for the shell: it starts
     // without credentials and fails later, at login. The ImGui client
     // treats the same situation as fatal.
-    var cfg = config.load(gpa, io, home) catch |err| switch (err) {
+    return config.load(gpa, io, home) catch |err| switch (err) {
         error.HomeNotSet,
         error.ConfigMissing,
         error.ConfigInvalid,
@@ -120,10 +124,6 @@ fn loadConfig(
         => try emptyConfig(gpa),
         else => return err,
     };
-    errdefer cfg.deinit(gpa);
-
-    if (config_json.len > 0) try applyOptions(gpa, &cfg, config_json);
-    return cfg;
 }
 
 /// A config without credentials; login fails until `config.zon` exists.
@@ -133,21 +133,6 @@ fn emptyConfig(gpa: Allocator) !config.Config {
         .api_hash = try gpa.dupe(u8, ""),
         .tdlib_path = null,
     };
-}
-
-/// Applies the non-secret JSON options on top of the loaded config.
-fn applyOptions(gpa: Allocator, cfg: *config.Config, config_json: []const u8) !void {
-    var parsed = std.json.parseFromSlice(StartOptions, gpa, config_json, .{
-        .ignore_unknown_fields = true,
-    }) catch |err| switch (err) {
-        error.OutOfMemory => return error.OutOfMemory,
-        else => return error.ConfigJsonInvalid,
-    };
-    defer parsed.deinit();
-
-    const override_path = parsed.value.tdlib_path orelse return;
-    if (cfg.tdlib_path) |old| gpa.free(old);
-    cfg.tdlib_path = try gpa.dupe(u8, override_path);
 }
 
 /// Stops the core and frees the handle. Passing null is a no-op; passing an
@@ -165,6 +150,7 @@ fn stopState(state: *State) void {
     state.allocator.destroy(state.client);
     state.config.deinit(state.allocator);
     state.allocator.free(state.home);
+    if (state.database_dir) |dir| state.allocator.free(dir);
     state.threaded.deinit();
     state.allocator.destroy(state.threaded);
     state.allocator.destroy(state);
@@ -194,7 +180,10 @@ fn sendTdlibParameters(state: *State) !u64 {
     const cfg = state.config;
     if (cfg.api_id == 0 or cfg.api_hash.len == 0) return error.ConfigIncomplete;
 
-    var paths = try app.parameters.Paths.init(state.allocator, state.home);
+    var paths = if (state.database_dir) |dir|
+        try customPaths(state.allocator, dir)
+    else
+        try app.parameters.Paths.init(state.allocator, state.home);
     defer paths.deinit();
     try paths.create(state.io);
 
@@ -206,6 +195,15 @@ fn sendTdlibParameters(state: *State) !u64 {
     });
     defer state.allocator.free(json);
     return state.client.send(json);
+}
+
+/// Data directories at an explicit location; an empty directory starts a
+/// fresh session without touching the logged-in one.
+fn customPaths(gpa: Allocator, dir: []const u8) !app.parameters.Paths {
+    const data_dir = try gpa.dupe(u8, dir);
+    errdefer gpa.free(data_dir);
+    const files_dir = try std.fmt.allocPrint(gpa, "{s}/files", .{dir});
+    return .{ .allocator = gpa, .data_dir = data_dir, .files_dir = files_dir };
 }
 
 /// Waits up to `timeout_ms` for one event. Returns 1 when `out` is filled
@@ -230,18 +228,11 @@ export fn zigram_free(ptr: ?*anyopaque, len: usize) void {
     std.heap.c_allocator.free(bytes[0..len]);
 }
 
-test "start options ignore unknown fields" {
-    var parsed = try std.json.parseFromSlice(
-        StartOptions,
-        std.testing.allocator,
-        "{\"tdlib_path\":\"/tmp/libtdjson.so\",\"future_field\":true}",
-        .{ .ignore_unknown_fields = true },
-    );
-    defer parsed.deinit();
-    try std.testing.expectEqualStrings(
-        "/tmp/libtdjson.so",
-        parsed.value.tdlib_path.?,
-    );
+test "custom paths keep the files under the data directory" {
+    var paths = try customPaths(std.testing.allocator, "/tmp/fresh");
+    defer paths.deinit();
+    try std.testing.expectEqualStrings("/tmp/fresh", paths.data_dir);
+    try std.testing.expectEqualStrings("/tmp/fresh/files", paths.files_dir);
 }
 
 test "zigram_version is a non-empty string" {

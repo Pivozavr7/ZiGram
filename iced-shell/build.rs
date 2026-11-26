@@ -15,6 +15,10 @@ fn main() {
         "cargo:rerun-if-changed={}",
         repo.join("build.zig").display()
     );
+    println!(
+        "cargo:rerun-if-changed={}",
+        repo.join("build.zig.zon").display()
+    );
     build_zig(&repo);
 
     let lib_dir = repo.join("zig-out/lib");

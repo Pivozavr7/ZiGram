@@ -1,5 +1,6 @@
 //! The shell state: the login panel on top, raw TDLib events below.
 
+use std::collections::VecDeque;
 use std::sync::Arc;
 
 use iced::widget::{column, text, Scrollable};
@@ -18,7 +19,7 @@ const MAX_PREVIEW: usize = 160;
 /// The whole ui state of the debug shell.
 pub struct App {
     core: Arc<Core>,
-    events: Vec<String>,
+    events: VecDeque<String>,
     /// Last parsed `updateAuthorizationState`.
     auth: Option<AuthState>,
     /// Set once the credentials have been sent to TDLib.
@@ -37,7 +38,7 @@ impl App {
     pub fn new(core: Arc<Core>) -> Self {
         App {
             core,
-            events: Vec::new(),
+            events: VecDeque::new(),
             auth: None,
             tdlib_sent: false,
             login: Login::new(),
@@ -57,9 +58,9 @@ impl App {
     fn on_event(&mut self, json: Vec<u8>, extra: Option<u64>) {
         let line = preview(&json, extra);
         println!("{line}");
-        self.events.push(line);
+        self.events.push_back(line);
         if self.events.len() > VISIBLE_LINES {
-            self.events.remove(0);
+            self.events.pop_front();
         }
         if let Some(state) = auth::parse_auth_state(&json) {
             self.on_auth_state(state);
@@ -82,8 +83,12 @@ impl App {
             if let Err(err) = self.core.send_tdlib_parameters() {
                 let line = format!("setTdlibParameters failed: {err}");
                 println!("{line}");
-                self.events.push(line);
+                self.events.push_back(line);
             }
+        }
+        // An error from the previous step says nothing about the new one.
+        if self.auth.as_ref() != Some(&state) {
+            self.login.error = None;
         }
         match state {
             AuthState::WaitCode { .. } => self.login.code.clear(),

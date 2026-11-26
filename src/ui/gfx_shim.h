@@ -41,6 +41,7 @@ typedef struct {
     float panel_width;
     float panel_height;
     float composer_height;
+    float bubble_max_width;
 } zig_gfx_theme;
 
 // Font files the Zig side located for the atlas; NULL entries skip a

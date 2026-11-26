@@ -38,4 +38,5 @@ test "the built-in theme is complete and opaque" {
     try testing.expect(theme.font_size > 0);
     try testing.expect(theme.panel_width > 0 and theme.panel_height > 0);
     try testing.expect(theme.composer_height > 0);
+    try testing.expect(theme.bubble_max_width > 0);
 }

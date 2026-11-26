@@ -53,6 +53,8 @@ pub const Tokens = extern struct {
     panel_height: f32 = 460,
     /// The height of the message composer.
     composer_height: f32 = 60,
+    /// The widest a message bubble may get; the text wraps above it.
+    bubble_max_width: f32 = 320,
 };
 
 test "a token document carries a color and a size" {

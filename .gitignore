@@ -27,3 +27,4 @@ opencode.json
 # Local agent instructions and planning notes; never publish them.
 AGENTS.md
 ZiGram-plan.md
+iced-plan.md

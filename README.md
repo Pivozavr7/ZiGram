@@ -9,7 +9,7 @@
 
 ### a fast, native, hackable telegram client written in zig
 
-no electron &nbsp;·&nbsp; no qt &nbsp;·&nbsp; gpu-rendered &nbsp;·&nbsp; every color is a config file
+no electron &nbsp;·&nbsp; no qt &nbsp;·&nbsp; gpu-rendered &nbsp;·&nbsp; every color is a config file &nbsp;·&nbsp; holy vibecode
 
 <br>
 

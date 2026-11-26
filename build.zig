@@ -63,6 +63,10 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
+    // The shell links this archive with a non-zig linker, which cannot
+    // reach zig's compiler rt; bundling it resolves the soft float and
+    // 128-bit helpers std.json needs.
+    api.bundle_compiler_rt = true;
     b.installArtifact(api);
 
     const imgui = b.addLibrary(.{

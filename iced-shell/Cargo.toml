@@ -1,0 +1,14 @@
+[package]
+name = "iced-shell"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Rust shell over the zigram C API (iced experiment)"
+
+# A panicking Rust frame must abort instead of unwinding into Zig: no
+# unwinding is allowed across the FFI boundary.
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"

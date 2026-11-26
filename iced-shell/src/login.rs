@@ -21,6 +21,9 @@ pub struct Login {
     /// about every thirty seconds.
     qr_data: Option<qr_code::Data>,
     qr_link: String,
+    /// Set when the user leaves the QR panel for the phone form while
+    /// TDLib still reports the QR state.
+    back_to_phone: bool,
 }
 
 /// What the login screen asks the app to do.
@@ -32,6 +35,7 @@ pub enum Message {
     Submit,
     Qr,
     Resend,
+    BackToPhone,
 }
 
 impl Login {
@@ -44,7 +48,25 @@ impl Login {
             pending: None,
             qr_data: None,
             qr_link: String::new(),
+            back_to_phone: false,
         }
+    }
+
+    /// True while the user is filling the phone form that replaced the
+    /// QR panel.
+    pub fn wants_phone(&self) -> bool {
+        self.back_to_phone
+    }
+
+    /// Leaves the QR panel for the phone form.
+    pub fn go_back_to_phone(&mut self) {
+        self.back_to_phone = true;
+    }
+
+    /// Drops the local phone override; called when TDLib moves out of
+    /// the QR state on its own.
+    pub fn leave_back_to_phone(&mut self) {
+        self.back_to_phone = false;
     }
 
     /// Draws the panel of the current authorization state.
@@ -59,7 +81,13 @@ impl Login {
             AuthState::WaitPassword { password_hint } => {
                 self.view_password(panel, password_hint.as_deref())
             }
-            AuthState::WaitOtherDeviceConfirmation { link } => self.view_qr(panel, link),
+            AuthState::WaitOtherDeviceConfirmation { link } => {
+                if self.back_to_phone {
+                    self.view_phone(panel)
+                } else {
+                    self.view_qr(panel, link)
+                }
+            }
             AuthState::WaitTdlibParameters | AuthState::Other => panel.push(text("authorizing…")),
             AuthState::WaitRegistration => {
                 panel.push(text("registration of new accounts is not supported yet"))
@@ -164,5 +192,6 @@ impl Login {
         } else {
             panel.push(text("waiting for the QR link…"))
         }
+        .push(button("Use phone number instead").on_press(Message::BackToPhone))
     }
 }

@@ -88,6 +88,10 @@ impl App {
         if self.auth.as_ref() != Some(&state) {
             self.login.error = None;
         }
+        // The phone override only makes sense while TDLib reports QR.
+        if !matches!(state, AuthState::WaitOtherDeviceConfirmation { .. }) {
+            self.login.leave_back_to_phone();
+        }
         match state {
             AuthState::WaitCode { .. } => self.login.code.clear(),
             AuthState::WaitPassword { .. } => self.login.password.clear(),
@@ -106,13 +110,33 @@ impl App {
             login::Message::Code(value) => self.login.code = value,
             login::Message::Password(value) => self.login.password = value,
             login::Message::Submit => self.submit(),
-            login::Message::Qr => self.send_login(auth::qr_request()),
+            login::Message::Qr => {
+                self.login.leave_back_to_phone();
+                self.send_login(auth::qr_request())
+            }
             login::Message::Resend => self.send_login(auth::resend_request()),
+            login::Message::BackToPhone => self.back_to_phone(),
+        }
+    }
+
+    /// Leaves the QR panel for the phone form. With a remembered number
+    /// the core is told right away; TDLib then moves back to the code
+    /// state on its own.
+    fn back_to_phone(&mut self) {
+        self.login.go_back_to_phone();
+        if !self.login.phone.is_empty() {
+            self.send_login(auth::phone_request(&self.login.phone));
         }
     }
 
     /// Sends the request that belongs to the current state and input.
     fn submit(&mut self) {
+        if self.login.wants_phone() {
+            if !self.login.phone.is_empty() {
+                self.send_login(auth::phone_request(&self.login.phone));
+            }
+            return;
+        }
         let request = match &self.auth {
             Some(AuthState::WaitPhoneNumber) if !self.login.phone.is_empty() => {
                 auth::phone_request(&self.login.phone)

@@ -264,7 +264,7 @@ split the prototype into small single-purpose modules before the ui grows.
 - [x] theme tokens and `.zon` loader
 - [x] text check: cyrillic, cjk, color emoji, ime (`zig build run-gui -- --text-test`)
 - [x] virtual scrolling for long histories
-- [ ] iced frontend: the gui layer moves to iced (rust) behind a small c api, the core stays zig — staged experiment, s0 done (C API + cargo shell, tests green), s1 next
+- [ ] iced frontend: the gui layer moves to iced (rust) behind a small c api, the core stays zig — staged experiment, s0 done (C API + cargo shell, tests green), s1 done (iced window streams tdlib events), s2 next
 - [ ] three themes, configurable keybinds
 - [ ] d-bus notifications, search
 - [ ] media: photos, stickers, voice, video notes, gifs

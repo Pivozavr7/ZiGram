@@ -123,6 +123,12 @@ impl Event {
             None
         }
     }
+
+    /// Consumes the event and returns its data as owned copies, safe to
+    /// send across threads.
+    pub fn into_parts(self) -> (Vec<u8>, Option<u64>) {
+        (self.json().to_vec(), self.extra())
+    }
 }
 
 impl Drop for Event {
@@ -144,5 +150,15 @@ mod tests {
     fn interior_nul_is_rejected_before_the_call() {
         let err = Core::start("bad\0json").unwrap_err();
         assert!(matches!(err, Error::InteriorNul(_)));
+    }
+
+    #[test]
+    fn event_without_payload_has_no_parts() {
+        let event = crate::Event {
+            raw: crate::ffi::zigram_event::default(),
+        };
+        let (json, extra) = event.into_parts();
+        assert!(json.is_empty());
+        assert_eq!(extra, None);
     }
 }

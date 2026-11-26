@@ -5,6 +5,10 @@ edition = "2021"
 publish = false
 description = "Rust shell over the zigram C API (iced experiment)"
 
+[[bin]]
+name = "zigram-iced"
+path = "src/main.rs"
+
 # A panicking Rust frame must abort instead of unwinding into Zig: no
 # unwinding is allowed across the FFI boundary.
 [profile.dev]
@@ -12,3 +16,6 @@ panic = "abort"
 
 [profile.release]
 panic = "abort"
+
+[dependencies]
+iced = "0.14.0"

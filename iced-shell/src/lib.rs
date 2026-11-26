@@ -31,6 +31,8 @@ pub enum Error {
     StartFailed,
     /// `zigram_send` assigned no `@extra`.
     SendFailed,
+    /// `zigram_send_tdlib_parameters` returned 0.
+    ParametersFailed,
     /// `zigram_poll_event` reported an error.
     PollFailed,
 }
@@ -41,6 +43,9 @@ impl std::fmt::Display for Error {
             Error::InteriorNul(err) => write!(f, "interior NUL in string: {err}"),
             Error::StartFailed => write!(f, "core failed to start"),
             Error::SendFailed => write!(f, "core rejected the request"),
+            Error::ParametersFailed => {
+                write!(f, "core rejected setTdlibParameters (config.zon?)")
+            }
             Error::PollFailed => write!(f, "core failed to poll events"),
         }
     }
@@ -72,6 +77,16 @@ impl Core {
         let extra = unsafe { ffi::zigram_send(self.handle, json.as_ptr()) };
         if extra == 0 {
             return Err(Error::SendFailed);
+        }
+        Ok(extra)
+    }
+
+    /// Sends `setTdlibParameters` with the credentials zig holds in
+    /// `config.zon`; called once when the core asks for its parameters.
+    pub fn send_tdlib_parameters(&self) -> Result<u64, Error> {
+        let extra = unsafe { ffi::zigram_send_tdlib_parameters(self.handle) };
+        if extra == 0 {
+            return Err(Error::ParametersFailed);
         }
         Ok(extra)
     }

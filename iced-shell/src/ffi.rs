@@ -29,6 +29,7 @@ extern "C" {
     pub fn zigram_start(config_json: *const c_char) -> *mut c_void;
     pub fn zigram_stop(handle: *mut c_void);
     pub fn zigram_send(handle: *mut c_void, request_json: *const c_char) -> u64;
+    pub fn zigram_send_tdlib_parameters(handle: *mut c_void) -> u64;
     pub fn zigram_poll_event(handle: *mut c_void, timeout_ms: u32, out: *mut zigram_event)
         -> c_int;
     pub fn zigram_free(ptr: *mut c_void, len: usize);

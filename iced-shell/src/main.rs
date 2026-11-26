@@ -1,6 +1,8 @@
 //! Entry point of the iced debug shell (S1 of the frontend experiment).
 
 mod app;
+mod auth;
+mod login;
 mod poller;
 
 use std::path::PathBuf;

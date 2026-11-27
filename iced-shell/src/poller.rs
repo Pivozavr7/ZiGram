@@ -37,7 +37,13 @@ pub fn start(core: Arc<Core>) -> impl Stream<Item = Message> {
                     }
                 }
                 Ok(None) => continue, // timeout, keep waiting
-                Err(_) => break,      // poll failed
+                Err(err) => {
+                    // The window must learn that the bridge is gone;
+                    // dropping the stream silently would freeze the ui.
+                    let detail = err.to_string();
+                    let _ = send_blocking(&mut sender, Message::PollFailed { detail });
+                    break;
+                }
             }
         }
     });

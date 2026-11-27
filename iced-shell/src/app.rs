@@ -28,6 +28,8 @@ pub struct App {
     auth: Option<AuthState>,
     /// Set once the credentials have been sent to TDLib.
     tdlib_sent: bool,
+    /// Set when the poll thread died; no events arrive after that.
+    poll_failed: bool,
     login: Login,
 }
 
@@ -43,6 +45,10 @@ pub enum Message {
     Timeout {
         extra: u64,
     },
+    /// The poll thread gave up; no more events will arrive.
+    PollFailed {
+        detail: String,
+    },
 }
 
 impl App {
@@ -52,6 +58,7 @@ impl App {
             events: VecDeque::new(),
             auth: None,
             tdlib_sent: false,
+            poll_failed: false,
             login: Login::new(),
         }
     }
@@ -67,7 +74,19 @@ impl App {
                 self.on_timeout(extra);
                 Task::none()
             }
+            Message::PollFailed { detail } => {
+                self.on_poll_failed(detail);
+                Task::none()
+            }
         }
+    }
+
+    /// Keeps the bridge failure on screen for as long as the window lives.
+    fn on_poll_failed(&mut self, detail: String) {
+        let line = format!("event poll failed: {detail}");
+        println!("{line}");
+        self.events.push_back(line);
+        self.poll_failed = true;
     }
 
     /// Fails the request that went silent; a late answer is then
@@ -226,6 +245,11 @@ impl App {
             )))
             .spacing(6)
             .padding(12);
+        if self.poll_failed {
+            root = root.push(text(
+                "event poll failed — the window no longer sees the core",
+            ));
+        }
         if let Some(state) = &self.auth {
             root = root.push(self.login.view(state).map(Message::Login));
         }

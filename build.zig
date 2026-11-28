@@ -46,6 +46,29 @@ pub fn build(b: *std.Build) void {
     });
     b.installArtifact(cli);
 
+    // C ABI for the iced shell: a static library over core + app. PIC
+    // because the shell links it into position independent executables.
+    const api = b.addLibrary(.{
+        .linkage = .static,
+        .name = "zigram_core",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/api.zig"),
+            .target = target,
+            .optimize = optimize,
+            .link_libc = true,
+            .pic = true,
+            .imports = &.{
+                .{ .name = "zigram", .module = core },
+                .{ .name = "zigram_app", .module = app },
+            },
+        }),
+    });
+    // The shell links this archive with a non-zig linker, which cannot
+    // reach zig's compiler rt; bundling it resolves the soft float and
+    // 128-bit helpers std.json needs.
+    api.bundle_compiler_rt = true;
+    b.installArtifact(api);
+
     const imgui = b.addLibrary(.{
         .linkage = .static,
         .name = "imgui",
@@ -171,6 +194,12 @@ pub fn build(b: *std.Build) void {
     });
     const run_fonts_tests = b.addRunArtifact(fonts_tests);
 
+    // The C ABI module: option parsing and buffer handover, no client.
+    const api_tests = b.addTest(.{
+        .root_module = api.root_module,
+    });
+    const run_api_tests = b.addRunArtifact(api_tests);
+
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_core_tests.step);
     test_step.dependOn(&run_cli_tests.step);
@@ -178,6 +207,7 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_qr_tests.step);
     test_step.dependOn(&run_theme_tests.step);
     test_step.dependOn(&run_fonts_tests.step);
+    test_step.dependOn(&run_api_tests.step);
 
     const fmt_step = b.addFmt(.{
         .paths = b.pathList(&.{ "src", "build.zig" }),

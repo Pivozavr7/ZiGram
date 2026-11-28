@@ -2,181 +2,176 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/wordmark_on_dark.svg">
-  <img src="assets/wordmark_on_light.svg" alt="ziGram logo" width="300">
+  <img src="assets/wordmark_on_light.svg" alt="ZiGram" width="300">
 </picture>
 
-# zigram
+**A fast, native, hackable Telegram client written in Zig.**
+No Electron, no Qt. GPU-rendered. Every color is a config file.
 
-### a fast, native, hackable telegram client written in zig
+<p>
+  <a href="#status"><img alt="Status" src="https://img.shields.io/badge/status-pre--alpha-e5484d?labelColor=1f2328"></a>
+  <a href="https://ziglang.org"><img alt="Zig" src="https://img.shields.io/badge/zig-0.17.x-f7a41d?logo=zig&logoColor=1f2328&labelColor=1f2328"></a>
+  <a href="https://github.com/tdlib/td"><img alt="TDLib" src="https://img.shields.io/badge/tdlib-1.8.70-26a5e4?logo=telegram&logoColor=1f2328&labelColor=1f2328"></a>
+  <img alt="Platform" src="https://img.shields.io/badge/linux-wayland%20%7C%20x11-fcc624?logo=linux&logoColor=1f2328&labelColor=1f2328">
+  <img alt="Renderer" src="https://img.shields.io/badge/render-vulkan-ac162c?logo=vulkan&logoColor=1f2328&labelColor=1f2328">
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-apache--2.0-3b82f6?logo=apache&logoColor=1f2328&labelColor=1f2328"></a>
+</p>
 
-no electron &nbsp;·&nbsp; no qt &nbsp;·&nbsp; gpu-rendered &nbsp;·&nbsp; every color is a config file &nbsp;·&nbsp; holy vibecode
-
-<br>
-
-<a href="#status"><img src="https://img.shields.io/badge/status-pre--alpha-e5484d?style=for-the-badge" alt="status"></a>
-<a href="https://ziglang.org"><img src="https://img.shields.io/badge/zig-0.17.x-f7a41d?style=for-the-badge&logo=zig&logoColor=black" alt="zig"></a>
-<a href="https://github.com/tdlib/td"><img src="https://img.shields.io/badge/tdlib-1.8.70-26a5e4?style=for-the-badge&logo=telegram&logoColor=white" alt="tdlib"></a>
-<a href="#requirements"><img src="https://img.shields.io/badge/linux-wayland%20%2B%20x11-1f2328?style=for-the-badge&logo=linux&logoColor=white" alt="linux"></a>
-<a href="LICENSE"><img src="https://img.shields.io/badge/license-apache--2.0-3b82f6?style=for-the-badge&logo=apache&logoColor=white" alt="license"></a>
-
-<br>
-
-<img src="https://img.shields.io/badge/ui-dear%20imgui-4296fa?style=flat-square" alt="dear imgui">
-<img src="https://img.shields.io/badge/window-sdl3%20gpu-8b5cf6?style=flat-square" alt="sdl3">
-<img src="https://img.shields.io/badge/render-vulkan-ac162c?style=flat-square&logo=vulkan&logoColor=white" alt="vulkan">
-<img src="https://img.shields.io/badge/protocol-mtproto%20via%20tdlib-2ea44f?style=flat-square" alt="mtproto">
-<img src="https://img.shields.io/badge/config-.zon-f7a41d?style=flat-square" alt="zon config">
-
-<br><br>
-
-[**why**](#why-zigram) &nbsp;·&nbsp;
-[**features**](#features) &nbsp;·&nbsp;
-[**architecture**](#architecture) &nbsp;·&nbsp;
-[**build**](#build-and-run) &nbsp;·&nbsp;
-[**config**](#configuration) &nbsp;·&nbsp;
-[**roadmap**](#roadmap) &nbsp;·&nbsp;
-[**changelog**](CHANGELOG.md) &nbsp;·&nbsp;
-[**releases**](https://github.com/Pivozavr7/ZiGram/releases)
+[Why](#why) ·
+[Features](#features) ·
+[Architecture](#architecture) ·
+[Build](#build-and-run) ·
+[Config](#configuration) ·
+[Roadmap](#roadmap) ·
+[Changelog](CHANGELOG.md) ·
+[Releases](https://github.com/Pivozavr7/ZiGram/releases)
 
 </div>
 
-<br>
+<a id="status"></a>
 
 > [!WARNING]
-> **pre-alpha. you can't use this as your daily client yet.**
->
-> login (phone, code, 2fa, qr) works in the gui, and so does a first client view: chat list, message history, sending. editing, media, themes and everything after that are still **planned**. anything in this readme is marked "planned" until it actually exists.
+> **Pre-alpha. Not usable as a daily client yet.**
+> Login (phone, code, 2FA, QR), chat list, message history and sending work in the GUI.
+> Everything else is **planned** and marked as such.
 
-<br>
+## Why
 
-## why zigram
+The official desktop client is a huge Qt/C++ codebase that is slow to build and hard to modify. Most alternatives are web wrappers. ZiGram takes a different route:
 
-telegram's official desktop client is great, but it's a huge qt/c++ codebase that's painful to modify and slow to build. most other clients are web wrappers in a trench coat. zigram goes another way:
+- **Native and small.** One Zig binary plus TDLib. No browser engine, no Qt.
+- **Fast.** Immediate-mode UI ([Dear ImGui](https://github.com/ocornut/imgui)) on SDL3's GPU API.
+- **Hackable.** Themes, layout and keybinds are plain [`.zon`](https://ziglang.org/) files read at runtime. Change a color, no rebuild.
+- **Clean split.** All Telegram logic lives in a GUI-free core with its own headless CLI. The UI is just a client of it.
+- **No homemade crypto.** MTProto, encryption, sync and caching come from the official TDLib.
 
-| | |
-|:--|:--|
-| ⚡ **native and small** | one zig binary plus telegram's own tdlib. no browser engine, no qt. |
-| 🚀 **fast by construction** | immediate-mode ui ([dear imgui](https://github.com/ocornut/imgui)) drawn through sdl3's gpu api. |
-| 🛠️ **hackable** | themes, layout and keybinds are plain [`.zon`](https://ziglang.org/) files read at runtime. change a color, no rebuild. |
-| 🧩 **clean split** | all telegram logic lives in a gui-free core with its own headless cli. the ui is just a client of that core. |
-| 🔐 **no crypto cosplay** | mtproto, encryption, sync and caching come from the official, battle-tested tdlib. zigram doesn't reimplement any of it. |
+## Features
 
-<br>
-
-## features
-
-everything here is **planned** unless it says otherwise.
-
-| | | |
+| Feature | Details | Status |
 |:--|:--|:--|
-| 🔑 **login** | phone, code, 2fa password, qr | `works`, not battle-tested yet |
-| 💬 **chats** | private chats and groups first, then channels, topics, secret chats | `works`: list, history, sending |
-| 🎨 **three designs** | **md3** (material 3), **linear** (dense, minimal), **flat** (tdesktop-inspired) | `planned` |
-| 🎛️ **deep customization** | colors, rounding, density, fonts, panel widths, all in config files | `planned` |
-| ⌨️ **keybinds** | tdesktop-compatible defaults, fully remappable, optional vim-style navigation | `planned` |
-| 🪟 **layouts** | classic two-pane first, later several chats side by side | `planned` |
-| 🔔 **notifications** | native linux notifications over d-bus | `planned` |
-| 🌍 **text** | cyrillic, cjk, color emoji, ime input | `planned` |
-| 🖼️ **media** | photos first, then stickers, voice, video notes, gifs | `planned` |
+| Login | Phone, code, 2FA password, QR | ✅ works, not battle-tested |
+| Chats | Private chats and groups: list, history, sending | ✅ works |
+| Chats (more) | Channels, topics, secret chats | planned |
+| Frontends | Dear ImGui by default; an Iced (Rust) frontend behind a small C API | 🚧 experiment |
+| Themes | **MD3**, **Linear** (dense, minimal), **Flat** (tdesktop-like) | planned |
+| Customization | Colors, rounding, density, fonts, panel widths | planned |
+| Keybinds | tdesktop-compatible defaults, remappable, optional vim-style | planned |
+| Layouts | Two-pane first, multiple chats side by side later | planned |
+| Notifications | Native, over D-Bus | planned |
+| Text | Cyrillic, CJK, color emoji, IME | ✅ checked (`--text-test`) |
+| Media | Photos, then stickers, voice, video notes, GIFs | planned |
 
-not planned for the first releases: calls, bot ui polish, right-to-left scripts (dear imgui can't do them).
+Out of scope for early releases: calls, bot UI polish, right-to-left scripts (Dear ImGui can't render them).
 
-<!--
-## screenshots
-add screenshots here once the chat ui exists.
--->
-
-<br>
-
-## architecture
+## Architecture
 
 ```
 ┌────────────────────────────────────────────────┐
-│  gui/   window and frame loop (thin)           │
+│ gui/   window and frame loop (thin)            │
 ├────────────────────────────────────────────────┤
-│  ui/    dear imgui screens · widgets · themes  │  mvp 1
+│ ui/    Dear ImGui screens, widgets, themes     │  MVP 1
 ├────────────────────────────────────────────────┤
-│  app/   session · state · commands · config    │  no imgui, testable
+│ app/   session, state, commands, config        │  no ImGui, testable
 ├────────────────────────────────────────────────┤
-│  core/  telegram logic, no gui imports         │  mvp 0
-│         td/     runtime-loaded libtdjson       │
-│         auth    authorization state machine    │
-│         store/  users · chats · messages       │
+│ core/  Telegram logic, no GUI imports          │  MVP 0
+│        td/    runtime-loaded libtdjson         │
+│        auth   authorization state machine      │
+│        store/ users, chats, messages           │
 ├────────────────────────────────────────────────┤
-│  libtdjson.so   (official tdlib, json api)     │
+│ libtdjson.so  (official TDLib, JSON API)       │
 └────────────────────────────────────────────────┘
 ```
 
-dependencies only point down. a few decisions worth knowing about:
+Dependencies only point down. Key decisions:
 
-- **tdlib is loaded at runtime** with `std.DynLib`. no c header, no link-time dependency. zigram builds without tdlib present, and you can point it at any compatible `libtdjson.so`.
-- **one receiver thread** calls `td_receive` and feeds a queue. the ui thread drains it once per frame with a bounded budget, so a burst of updates can't freeze the window.
-- **the ui never talks to tdlib directly.** it reads app state and sends commands through the app layer.
-- **small files, by rule.** source files stay short and single-purpose. the limits are enforced by the project's contribution rules.
+- **TDLib is loaded at runtime** via `std.DynLib`. No C header, no link-time dependency; you can point ZiGram at any compatible `libtdjson.so`.
+- **One receiver thread** calls `td_receive` and feeds a queue. The UI thread drains it once per frame with a bounded budget, so update bursts can't freeze the window.
+- **The UI never talks to TDLib directly.** It reads app state and sends commands through the app layer.
+- **Small, single-purpose files.** Size limits are enforced by the contribution rules.
 
-<br>
+The iced frontend experiment runs beside ImGui, over a small C ABI:
 
-## requirements
+```
+┌────────────────────────────────────────────────┐
+│ iced-shell/   Rust + iced (experiment)         │
+├────────────────────────────────────────────────┤
+│ api.zig   C ABI: start · send · poll · free    │  → libzigram_core.a
+├────────────────────────────────────────────────┤
+│ app/ + core/    the same layers as above       │
+└────────────────────────────────────────────────┘
+```
 
-- **linux**: developed on arch, wayland and x11 both work through sdl3
-- **zig 0.17.x**: developed on 0.17.1
-- **sdl3**, **freetype**, **fontconfig**, **d-bus** dev libraries
-- a **vulkan** capable gpu and driver (for the gui)
-- **tdlib 1.8.x** `libtdjson.so`. you don't have to compile it, see the next section
-- your own telegram **`api_id` / `api_hash`** from [my.telegram.org](https://my.telegram.org)
-- **noto fonts** (sans, cjk, color emoji): the gui renders text with system fonts and falls back to imgui's default when they are missing
+- **Rust never sees credentials.** `zigram_start` takes only non-secret JSON options; `api_id`/`api_hash` stay in `config.zon`, read by Zig.
+- **Every buffer crossing the boundary is a copy** allocated by Zig and released with `zigram_free(ptr, len)`; no pointer is ever kept on either side.
+- The ImGui frontend stays the default until the experiment proves itself (see the roadmap).
 
-on arch:
+## Requirements
+
+- Linux (developed on Arch; Wayland and X11 both work via SDL3)
+- Zig 0.17.x (developed on 0.17.1)
+- SDL3, FreeType, Fontconfig, D-Bus dev libraries
+- Vulkan-capable GPU and driver (GUI only)
+- TDLib 1.8.x `libtdjson.so` (no need to compile it, see below)
+- Your own `api_id` / `api_hash` from [my.telegram.org](https://my.telegram.org)
+- Noto fonts (sans, CJK, color emoji). Without them the GUI falls back to ImGui's default font.
+- Rust + Cargo — only for the iced frontend experiment (`iced-shell/`)
+
+Arch:
 
 ```sh
 sudo pacman -S zig sdl3 freetype2 fontconfig dbus noto-fonts noto-fonts-cjk
 ```
 
-<br>
+## Getting TDLib
 
-## getting tdlib without compiling it
-
-building tdlib takes forever and eats a lot of ram, so zigram skips that. the repo ships a small script that downloads a **prebuilt** `libtdjson.so` and checks it against a pinned checksum:
+Building TDLib is slow and memory-hungry, so ZiGram downloads a **prebuilt** `libtdjson.so` and verifies it:
 
 ```sh
 ./scripts/fetch-tdlib.sh
 ```
 
-1. reads the pinned version and `sha256` from [`tdlib.lock`](tdlib.lock)
-2. grabs the prebuilt library from the [`prebuilt-tdlib`](https://www.npmjs.com/package/prebuilt-tdlib) npm package (statically linked against openssl and zlib)
-3. stops if the checksum doesn't match
-4. puts the library in `vendor/tdlib/` (git-ignored)
+The script reads the pinned version and `sha256` from [`tdlib.lock`](tdlib.lock), downloads the library from the [`prebuilt-tdlib`](https://www.npmjs.com/package/prebuilt-tdlib) npm package (statically linked against OpenSSL and zlib), aborts on checksum mismatch, and installs it to `vendor/tdlib/` (git-ignored).
 
-prefer your own copy? set `tdlib_path` in the config, or `ZIGRAM_TDLIB=/path/to/libtdjson.so`. zigram looks in this order: config, environment, `vendor/tdlib/`, `~/.local/share/zigram/`, then system paths. a system package like the aur's `telegram-tdlib` works too.
+To use your own copy, set `tdlib_path` in the config or `ZIGRAM_TDLIB=/path/to/libtdjson.so`. Lookup order: config → environment → `vendor/tdlib/` → `~/.local/share/zigram/` → system paths. Distro packages such as the AUR's `telegram-tdlib` work too.
 
 > [!NOTE]
-> the prebuilt binary is third-party. the pinned checksum protects you from silent changes, but if you want full control, build tdlib yourself or use your distro's package.
+> The prebuilt binary is third-party. The checksum protects against silent changes; for full control, build TDLib yourself or use your distro's package.
 
-<br>
-
-## build and run
+## Build and run
 
 ```sh
 git clone https://github.com/Pivozavr7/ZiGram
 cd ZiGram
 
-./scripts/fetch-tdlib.sh      # prebuilt tdlib (tdlib.lock pins the version)
-./scripts/fetch-deps.sh       # sdl3 and dear imgui sources (*.lock files)
+./scripts/fetch-tdlib.sh      # prebuilt TDLib (pinned in tdlib.lock)
+./scripts/fetch-deps.sh       # SDL3 and Dear ImGui sources (*.lock files)
 ./scripts/build-sdl.sh        # builds vendor/sdl/libSDL3.a (needs gcc + cmake)
 
-zig build                     # core, cli and gui
+zig build                     # core, CLI and GUI
 zig build test                # unit tests
-zig build run-gui             # launch the gui (needs vulkan)
+zig build run-gui             # launch the GUI (needs Vulkan)
 zig build run-cli -- version  # headless client
 ```
 
-**don't want to compile anything?** every [release](https://github.com/Pivozavr7/ZiGram/releases) has a linux x86_64 tarball with `zigram-gui`, `zigram-cli` and `libtdjson.so`. extract it and run the binaries from that folder. what changed in each release lives in [CHANGELOG.md](CHANGELOG.md).
+**The iced frontend experiment** (this branch) is a separate Cargo project:
 
-<br>
+```sh
+cd iced-shell
+cargo run --bin zigram-iced   # same ~/.config/zigram/config.zon
+cargo test                    # shell tests
+```
 
-## configuration
+To try it without touching your logged-in session, point it at an empty database:
 
-zigram needs **your own api credentials**. create an application at [my.telegram.org](https://my.telegram.org), then write `~/.config/zigram/config.zon`:
+```sh
+ZIGRAM_START_CONFIG='{"database_dir":"/tmp/zigram-fresh"}' cargo run --bin zigram-iced
+```
+
+**Don't want to build?** Each [release](https://github.com/Pivozavr7/ZiGram/releases) ships a Linux x86_64 tarball with `zigram-gui`, `zigram-cli` and `libtdjson.so`. Extract it and run the binaries from that folder.
+
+## Configuration
+
+Create an application at [my.telegram.org](https://my.telegram.org), then write `~/.config/zigram/config.zon`:
 
 ```zig
 .{
@@ -187,132 +182,93 @@ zigram needs **your own api credentials**. create an application at [my.telegram
 ```
 
 > [!CAUTION]
-> **never commit your `api_id` / `api_hash`, and never paste them into issues or ai prompts.** the repo's `.gitignore` already excludes `*.local.zon`.
+> Never commit your `api_id` / `api_hash`, and never paste them into issues or AI prompts. `.gitignore` already excludes `*.local.zon`.
 
-themes and keybinds will be separate files you can edit and reload (**planned**):
+Themes and keybinds will be separate editable, reloadable files (**planned**):
 
 ```
 ~/.config/zigram/themes/*.zon
 ~/.config/zigram/keybinds.zon
 ```
 
-<br>
+## Roadmap
 
-## roadmap
+| Stage | Progress | |
+|:--|:--|:--|
+| R: cleanup | ██████████ 5 / 5 | done |
+| MVP 0: core | ███████░░░ 5 / 7 | |
+| MVP 1: interface | █████░░░░░ 7 / 13 | ← current |
 
-```
-stage r   cleanup        ██████████  5 / 5
-mvp 0     the core       ███████░░░  5 / 7
-mvp 1     the interface  ████░░░░░░  4 / 12   ← we are here
-```
-
-<details open>
-<summary><b>stage r: cleanup</b> &nbsp;<code>done</code></summary>
-
-<br>
-
-split the prototype into small single-purpose modules before the ui grows.
+<details>
+<summary><b>Stage R: cleanup</b> (done)</summary>
 
 - [x] `store.zig` → `core/store/`
 - [x] `gui/main.zig` → `app/` + `ui/`
 - [x] `td.zig` → `core/td/` (`search`, `options`, `queue`, `library`, `receiver`, `client`)
-- [x] long 2fa passwords, secret buffers cleared after use
-- [x] ci runs tests in the build job
+- [x] Long 2FA passwords, secret buffers cleared after use
+- [x] CI runs tests in the build job
 
 </details>
 
-<details open>
-<summary><b>mvp 0: the core (no gui)</b></summary>
+<details>
+<summary><b>MVP 0: core (no GUI)</b></summary>
 
-<br>
-
-- [x] repo skeleton, build, `fetch-tdlib.sh`, `tdlib.lock`
-- [x] runtime-loaded tdlib, receiver thread, event queue, request/response matching
-- [x] authorization: phone, code, 2fa, qr
-- [x] chat list and message history parsing
-- [x] send a text message
-- [ ] edit, delete, read marks, file downloads
+- [x] Repo skeleton, build, `fetch-tdlib.sh`, `tdlib.lock`
+- [x] Runtime-loaded TDLib, receiver thread, event queue, request/response matching
+- [x] Authorization: phone, code, 2FA, QR
+- [x] Chat list and message history parsing
+- [x] Send a text message
+- [ ] Edit, delete, read marks, file downloads
 - [ ] `zigram-cli`: log in, list chats, read and send messages live
 
 </details>
 
 <details open>
-<summary><b>mvp 1: the interface</b> &nbsp;<code>current</code></summary>
+<summary><b>MVP 1: interface</b> (current)</summary>
 
-<br>
-
-- [x] sdl3 + sdl_gpu + dear imgui window (hidpi aware)
-- [x] login screen wired to the authorization state machine
-- [x] basic chat list, conversation view and message input
-- [x] chat list sorted by telegram order with unread counts, chats marked read on open
-- [x] theme tokens and `.zon` loader
-- [x] text check: cyrillic, cjk, color emoji, ime (`zig build run-gui -- --text-test`)
-- [x] virtual scrolling for long histories
-- [ ] iced frontend: the gui layer moves to iced (rust) behind a small c api, the core stays zig — staged experiment, s0 next
-- [ ] three themes, configurable keybinds
-- [ ] d-bus notifications, search
-- [ ] media: photos, stickers, voice, video notes, gifs
-- [ ] multi-chat layout
-- [ ] **1.0**: a client you can actually use every day. aur packaging comes after that.
+- [x] SDL3 + SDL_GPU + Dear ImGui window (HiDPI aware)
+- [x] Login screen wired to the authorization state machine
+- [x] Basic chat list, conversation view and message input
+- [x] Chat list in Telegram order with unread counts; chats marked read on open
+- [x] Theme tokens and `.zon` loader
+- [x] Text check: Cyrillic, CJK, color emoji, IME (`zig build run-gui -- --text-test`)
+- [x] Virtual scrolling for long histories
+- [ ] Iced frontend: GUI layer moves to Iced (Rust) behind a small C API, core stays Zig (staged experiment: S0 C API + shell, S1 event stream, S2 login screen — all done and accepted; S3 next)
+- [ ] Three themes, configurable keybinds
+- [ ] D-Bus notifications, search
+- [ ] Media: photos, stickers, voice, video notes, GIFs
+- [ ] Multi-chat layout
+- [ ] **1.0**: a client you can use every day. AUR packaging follows.
 
 </details>
 
-the detailed plan is kept by the maintainers. the roadmap above tracks the same stages.
+## Known challenges
 
-<br>
+- **Text in immediate-mode UIs is hard.** IME, color emoji and long variable-height lists need care. RTL is unsupported by Dear ImGui.
+- **Animated stickers (Lottie/TGS)** are the most expensive feature, so they come last.
+- **Zig moves fast.** The project pins a Zig version and upgrades deliberately.
 
-## known challenges
+## Contributing
 
-the hard parts, up front:
+The most useful help right now: ideas, testing on different setups, and focused PRs for roadmap items. Open an issue before anything big. Architecture rules and size limits apply to everyone; ask the maintainers for the current version.
 
-- **text in immediate-mode uis is hard.** ime, color emoji and long variable-height message lists all need care. rtl scripts aren't supported by dear imgui at all.
-- **animated stickers (lottie/tgs)** are the most expensive feature, so they come last.
-- **zig moves fast.** the project pins a zig version and upgrades on purpose, not by accident.
+## Disclaimer
 
-<br>
+ZiGram is an independent, unofficial client, not made, endorsed or supported by Telegram. By using it you agree to the [Telegram API Terms of Service](https://core.telegram.org/api/terms). Keep your `api_id` private and don't use the client for spam or abuse.
 
-## logo
+## License
 
-the orange tile with the lightning-z, the icon and the long wordmark, live in `assets/`:
+Apache License 2.0, see [`LICENSE`](LICENSE).
 
-<img src="assets/icon_orange.svg" alt="ziGram icon" width="80" height="80">
+Built on:
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="assets/wordmark_on_dark.svg">
-  <img src="assets/wordmark_on_light.svg" alt="ziGram wordmark" width="280">
-</picture>
-
-<br>
-
-## contributing
-
-the project is very young, so the most useful things right now are **ideas, testing on different setups, and focused prs for roadmap items**. open an issue before anything big. the architecture rules, size limits and conventions apply to humans too, ask the maintainers for the current version.
-
-<br>
-
-## not affiliated with telegram
-
-zigram is an independent, unofficial client. telegram doesn't make, endorse or support it. by using it you agree to the [telegram api terms of service](https://core.telegram.org/api/terms). keep your `api_id` private and don't use the client for spam or abuse.
-
-<br>
-
-## license
-
-apache license 2.0, see [`LICENSE`](LICENSE).
-
-standing on the shoulders of:
-
-| | | |
+| Project | License | Used for |
 |:--|:--|:--|
-| [tdlib](https://github.com/tdlib/td) | boost software license 1.0 | telegram protocol |
-| [dear imgui](https://github.com/ocornut/imgui) | mit | ui |
-| [sdl3](https://libsdl.org) | zlib | window, input, gpu |
-| [qr code generator](https://github.com/nayuki/QR-Code-generator) by nayuki | mit | qr encoder, ported to zig |
-
-<br>
+| [TDLib](https://github.com/tdlib/td) | BSL-1.0 | Telegram protocol |
+| [Dear ImGui](https://github.com/ocornut/imgui) | MIT | UI |
+| [SDL3](https://libsdl.org) | zlib | Window, input, GPU |
+| [QR Code generator](https://github.com/nayuki/QR-Code-generator) by Nayuki | MIT | QR encoder, ported to Zig |
 
 <div align="center">
-
-<sub>made with zig and too much coffee · [back to top](#zigram)</sub>
-
+<sub><a href="#">Back to top</a></sub>
 </div>

@@ -30,3 +30,6 @@ skills-lock.json
 AGENTS.md
 ZiGram-plan.md
 iced-plan.md
+
+# Rust build outputs of the iced shell experiment.
+iced-shell/target/
